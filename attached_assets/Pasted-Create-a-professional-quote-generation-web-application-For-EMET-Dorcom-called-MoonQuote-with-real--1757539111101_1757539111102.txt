@@ -1,0 +1,116 @@
+Create a professional quote generation web application For EMET Dorcom called "MoonQuote" with real-time live preview capabilities and the following specifications:
+App Overview
+Build a modern, responsive quote generator that produces professional PDF and Word quotes matching the exact format and styling of the attached Dorcom quote template. The app should feature a split-screen layout with live preview that updates in real-time as users input data, making it user-friendly for sales teams to quickly generate customized quotes with advanced data entry capabilities.
+Core Layout & Live Preview System
+Split-Screen Interface
+•	Left Panel: Input forms and data entry (40-50% width)
+•	Right Panel: Live quote preview (50-60% width)
+•	Responsive breakpoint: On mobile/tablet, switch to tabbed interface with "Edit" and "Preview" tabs
+•	Sync indicator: Visual feedback showing when preview is updating
+•	Zoom controls: Allow users to zoom in/out of preview for detail review
+Real-Time Preview Features
+•	Instant updates: Preview refreshes immediately as user types (with 200ms debounce)
+•	Exact formatting: Preview matches final PDF/Word output exactly
+•	Interactive preview: Click on preview elements to jump to corresponding input fields
+•	Section highlighting: Hover over input sections to highlight corresponding preview areas
+•	Mobile-responsive preview: Preview adapts to show how quote will look on different devices
+•	Print preview mode: Toggle to see exactly how it will look when printed
+Core Features
+1. Dynamic Input Form with Live Preview Integration
+Create a clean input form with the following variable fields:
+•	Quote Subject: Text input with live title update in preview
+•	Customer Company Logo: Image upload with instant preview integration and sizing
+•	Sales Person Name: Text input with dropdown, updates contact section in real-time
+•	Date: Date picker with immediate date formatting in preview
+•	Version: Text input with live version display
+•	Payment Terms: Dropdown with instant terms update in preview
+2. Enhanced BOM Section with Preview Updates
+•	Toggle with preview: BOM section appears/disappears in preview instantly
+•	Live table updates: Each row addition/edit reflects immediately in preview
+•	Excel Integration with Preview:
+•	Copy-paste from Excel: See data populate in preview as it's pasted
+•	Smart column mapping: Preview shows column assignments in real-time
+•	Bulk import preview: Show import results before confirming
+•	Flexible columns with live display:
+•	Toggle column visibility and see changes instantly in preview
+•	QTY, Product Description, PN, NO columns
+•	Preview formatting: BOM table in preview matches exact output formatting
+3. Smart Costs Section with Live Calculations & Preview
+•	Real-time calculation display: All math happens instantly in both input and preview
+•	Live price formatting: Currency formatting updates immediately
+•	Intelligent calculations with preview:
+•	Auto Unit Price: Preview shows calculation as user types
+•	Auto Total Price: Real-time updates in both panels
+•	Grand Total: Live running total with discount calculations
+•	Visual calculation feedback: Highlight calculated fields in preview
+•	Special discount preview: Discount lines appear/update instantly
+4. Fixed Template Elements with Live Display
+•	Static content preview: Company intro, terms, IP section always visible in preview
+•	Dynamic personalization: Sales rep contact info updates live
+•	Formatting consistency: Preview maintains exact template styling
+Advanced Live Preview Features
+Preview Controls
+•	Full-screen preview: Expand preview to full screen for detailed review
+•	Page navigation: If quote spans multiple pages, show page indicators
+•	Section jumping: Click preview sections to scroll to corresponding inputs
+•	Preview modes:
+•	Draft mode: Shows placeholder text for empty fields
+•	Final mode: Hides empty sections for clean presentation
+•	Export preview: Show exactly what will be exported before generating files
+Real-Time Validation with Preview Feedback
+•	Error highlighting: Invalid data shows error states in both input and preview
+•	Missing data indicators: Preview shows placeholders for required missing fields
+•	Format validation: Real-time check of phone numbers, emails, currencies
+•	Completeness meter: Progress bar showing quote completion status
+Interactive Preview Elements
+•	Click-to-edit: Click on preview text to jump to corresponding input field
+•	Hover tooltips: Show edit hints when hovering over preview elements
+•	Section borders: Subtle borders in preview showing editable vs fixed sections
+•	Field focus sync: Active input field highlights corresponding preview area
+Technical Requirements
+Frontend Architecture
+•	Dual-pane layout: Efficient rendering for smooth real-time updates
+•	State management: Centralized state for instant sync between input and preview
+•	Performance optimization: Debounced updates, virtual scrolling for large BOMs
+•	Responsive design: Seamless experience across desktop, tablet, mobile
+•	Auto-save with preview: Save state includes preview scroll position
+Live Preview Engine
+•	Template rendering: HTML/CSS engine that matches PDF/Word output exactly
+•	Real-time compilation: Convert input data to formatted preview instantly
+•	Cross-browser consistency: Preview looks identical across all browsers
+•	Print CSS: Preview uses print stylesheets to match final output
+•	Performance monitoring: Smooth 60fps updates even with large quotes
+Export Functionality
+•	WYSIWYG guarantee: "What You See Is What You Get" - exported files match preview exactly
+•	Dual format support: PDF and Word exports maintain preview formatting
+•	Background processing: Export generation doesn't interrupt preview usage
+•	Export preview: Final confirmation screen showing export format before download
+User Experience Flow with Live Preview
+1.	App loads: Instant preview with template structure and placeholder content
+2.	User starts typing: Preview updates in real-time showing professional formatting
+3.	BOM entry: Users see table building as they add rows or paste Excel data
+4.	Price calculations: Watch totals calculate automatically in both panels
+5.	Logo upload: Customer logo appears instantly in preview with proper sizing
+6.	Section toggling: BOM/cost sections appear/disappear smoothly in preview
+7.	Final review: Full-screen preview mode for detailed quality check
+8.	Export confidence: User knows exactly what the final output will look like
+9.	Draft saving: Can save and return with preview state preserved
+Preview-Specific Features
+Visual Feedback Systems
+•	Typing indicators: Subtle animations showing where changes are being made
+•	Calculation animations: Brief highlight when calculations update
+•	Section transitions: Smooth animations when sections are added/removed
+•	Loading states: Professional spinners during heavy operations
+•	Success confirmations: Visual feedback when actions complete
+Preview Customization
+•	Zoom levels: 50%, 75%, 100%, 125%, 150% for detailed review
+•	Page breaks: Show where pages will break in multi-page quotes
+•	Margin guides: Optional margin lines to ensure proper spacing
+•	Font rendering: Exact font matching for accurate preview
+Collaborative Features
+•	Preview sharing: Generate shareable links for preview-only access
+•	Comment mode: Add internal notes that don't appear in final export
+•	Version comparison: Compare current preview with previously saved versions
+The app should provide the confidence that comes from seeing exactly what the final quote will look like at every step of the creation process. Users should never be surprised by the final output because they've been seeing it build in real-time throughout the entire process.
+Make the live preview so accurate and responsive that sales teams will trust it completely, knowing that what they see on screen is exactly what their clients will receive in the final PDF or Word document.
+
