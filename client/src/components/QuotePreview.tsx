@@ -165,7 +165,7 @@ export default function QuotePreview({
           >
             {/* Page 1 - Cover Page with Border Frame */}
             <div 
-              className="relative h-[297mm] p-0 overflow-hidden"
+              className="relative h-[297mm] p-0 overflow-hidden bg-white"
               style={{
                 backgroundImage: `url(${frameImage})`,
                 backgroundSize: 'cover',
@@ -213,7 +213,7 @@ export default function QuotePreview({
                 </div>
 
                 {/* Bottom Info */}
-                <div className="absolute bottom-16 right-16 text-right text-lg text-black">
+                <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-center text-lg text-black">
                   <div>{salesPersonName || 'David Gilboa'} | {formatDate(date)} | Ver {version || '1'}</div>
                 </div>
 
@@ -413,7 +413,7 @@ export default function QuotePreview({
                     <li>Payment Terms - {paymentTerms || 'Current +30'}</li>
                     <li>Any delay in payment will result in the customer being charged an exceptional shekel-based interest or conversion to dollars according to the calculation that will produce the highest result.</li>
                     <li>The contents will be delivered to the customer on the condition that the exchange for it will be fully paid according to the terms of the transaction. Any rights not acquired by the customer, at any time that the full exchange has not been received by Dorcom Computers Ltd., and has not been fully waived. Dorcom Computers Ltd. reserves the right to immediately return the endorsement in the contents, if the customer does not meet the full terms and schedule of the transaction, or to credit any amount received from the customer as partial payment towards the items of the order. All of this according to its sole choice and discretion.</li>
-                    <li>Subject to the general terms here</li>
+                    <li>Subject to the general terms <a href="https://dorcom.co.il/%d7%aa%d7%a0%d7%90%d7%99-%d7%9e%d7%9b%d7%a8/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">here</a></li>
                   </ol>
                   
                   <div className="mt-12 space-y-4 text-base">
@@ -482,24 +482,11 @@ export default function QuotePreview({
                 {/* Contact */}
                 <div>
                   <h3 className="text-2xl font-bold mb-6 text-gray-900">Contact</h3>
-                  <table className="w-full text-base border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-gray-400">
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Name</th>
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Role</th>
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Phone</th>
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Email</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-gray-200">
-                        <td className="p-3">{salesPersonName || 'David Gilboa'}</td>
-                        <td className="p-3">Account Manager</td>
-                        <td className="p-3">{contact.phone}</td>
-                        <td className="p-3">{contact.email}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="text-base">
+                    <p className="leading-relaxed">
+                      <strong>{salesPersonName || 'David Gilboa'}</strong> - Account Manager - {contact.phone} - {contact.email}
+                    </p>
+                  </div>
                 </div>
               </div>
 
