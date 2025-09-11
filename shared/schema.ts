@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ export const quotes = pgTable("quotes", {
 
 export const bomItems = pgTable("bom_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  quoteId: varchar("quote_id").notNull(),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
   no: integer("no").notNull(),
   partNumber: text("part_number").notNull(),
   productDescription: text("product_description").notNull(),
@@ -26,36 +26,55 @@ export const bomItems = pgTable("bom_items", {
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
-});
+}, (table) => ({
+  quoteIdSortOrderIdx: index("bom_items_quote_id_sort_order_idx").on(table.quoteId, table.sortOrder),
+}));
 
 export const costItems = pgTable("cost_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  quoteId: varchar("quote_id").notNull(),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
   productDescription: text("product_description").notNull(),
   quantity: integer("quantity").notNull().default(1),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   isDiscount: boolean("is_discount").default(false),
   sortOrder: integer("sort_order").notNull().default(0),
-});
+}, (table) => ({
+  quoteIdSortOrderIdx: index("cost_items_quote_id_sort_order_idx").on(table.quoteId, table.sortOrder),
+}));
+
+// Helper schemas for decimal/numeric fields
+const moneyOptional = z.union([z.number(), z.string(), z.null(), z.undefined()])
+  .transform(v => (v == null || v === '') ? null : v.toString());
+const moneyRequired = z.union([z.number(), z.string()])
+  .transform(v => v.toString());
 
 // Schemas for form validation
 export const insertQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
   createdAt: true,
+}).extend({
+  bomEnabled: z.coerce.boolean().default(true),
 });
 
 export const insertBomItemSchema = createInsertSchema(bomItems).omit({
   id: true,
   quoteId: true,
 }).extend({
-  unitPrice: z.number().optional().transform(val => val?.toString()),
-  totalPrice: z.number().optional().transform(val => val?.toString()),
+  no: z.coerce.number().int(),
+  quantity: z.coerce.number().int().min(1).default(1),
+  unitPrice: moneyOptional,
+  totalPrice: moneyOptional,
 });
 
 export const insertCostItemSchema = createInsertSchema(costItems).omit({
   id: true,
   quoteId: true,
+}).extend({
+  quantity: z.coerce.number().int().min(1).default(1),
+  unitPrice: moneyRequired,
+  totalPrice: moneyRequired,
+  isDiscount: z.coerce.boolean().default(false),
 });
 
 // Types

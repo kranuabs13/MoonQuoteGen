@@ -17,8 +17,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save a new quote
   app.post("/api/quotes", async (req, res) => {
     try {
+      console.log('=== POST /api/quotes HANDLER CALLED ===');
+      console.log('POST /api/quotes - Method:', req.method);
+      console.log('POST /api/quotes - URL:', req.url);
+      console.log('POST /api/quotes - Request body:', JSON.stringify(req.body, null, 2));
+      
       const validatedData = saveQuoteSchema.parse(req.body);
+      console.log('POST /api/quotes - Validated data:', JSON.stringify(validatedData, null, 2));
+      
       const savedQuote = await storage.saveQuote(validatedData);
+      console.log('POST /api/quotes - Saved quote result type:', typeof savedQuote);
+      console.log('POST /api/quotes - Saved quote keys:', Object.keys(savedQuote));
+      console.log('POST /api/quotes - Saved quote:', JSON.stringify(savedQuote, null, 2));
+      
+      console.log('=== SENDING RESPONSE ===');
       res.json(savedQuote);
     } catch (error) {
       console.error('Error saving quote:', error);
@@ -29,7 +41,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all quotes (list view)
   app.get("/api/quotes", async (req, res) => {
     try {
+      console.log('=== GET /api/quotes HANDLER CALLED ===');
+      console.log('GET /api/quotes - Method:', req.method);
+      console.log('GET /api/quotes - URL:', req.url);
+      
       const quotes = await storage.getAllQuotes();
+      console.log('GET /api/quotes - Number of quotes:', quotes.length);
       res.json(quotes);
     } catch (error) {
       console.error('Error fetching quotes:', error);
@@ -58,8 +75,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/quotes/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      console.log(`PUT /api/quotes/${id} - Request body:`, JSON.stringify(req.body, null, 2));
       const validatedData = saveQuoteSchema.parse(req.body);
+      console.log(`PUT /api/quotes/${id} - Validated data:`, JSON.stringify(validatedData, null, 2));
       const updatedQuote = await storage.updateQuote(id, validatedData);
+      console.log(`PUT /api/quotes/${id} - Updated quote:`, JSON.stringify(updatedQuote?.quote, null, 2));
       
       if (!updatedQuote) {
         return res.status(404).json({ error: 'Quote not found' });

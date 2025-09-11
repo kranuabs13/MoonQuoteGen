@@ -51,51 +51,53 @@ export class DatabaseStorage implements IStorage {
     bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
     costItems: Array<Omit<InsertCostItem, 'quoteId'>>
   }): Promise<QuoteData> {
-    // Insert quote and get the created record
-    const [quote] = await db
-      .insert(quotes)
-      .values(quoteData.quote)
-      .returning();
-
-    // Insert BOM items with quoteId
-    const createdBomItems: BomItem[] = [];
-    if (quoteData.bomItems.length > 0) {
-      const bomItemsWithQuoteId = quoteData.bomItems.map((item, index) => ({
-        ...item,
-        quoteId: quote.id,
-        sortOrder: index,
-        unitPrice: item.unitPrice?.toString() || null,
-        totalPrice: item.totalPrice?.toString() || null,
-      }));
-      const insertedBomItems = await db
-        .insert(bomItems)
-        .values(bomItemsWithQuoteId)
+    return await db.transaction(async (tx) => {
+      // Insert quote and get the created record
+      const [quote] = await tx
+        .insert(quotes)
+        .values(quoteData.quote)
         .returning();
-      createdBomItems.push(...insertedBomItems);
-    }
 
-    // Insert cost items with quoteId
-    const createdCostItems: CostItem[] = [];
-    if (quoteData.costItems.length > 0) {
-      const costItemsWithQuoteId = quoteData.costItems.map((item, index) => ({
-        ...item,
-        quoteId: quote.id,
-        sortOrder: index,
-        unitPrice: item.unitPrice.toString(),
-        totalPrice: item.totalPrice.toString(),
-      }));
-      const insertedCostItems = await db
-        .insert(costItems)
-        .values(costItemsWithQuoteId)
-        .returning();
-      createdCostItems.push(...insertedCostItems);
-    }
+      // Insert BOM items with quoteId
+      const createdBomItems: BomItem[] = [];
+      if (quoteData.bomItems.length > 0) {
+        const bomItemsWithQuoteId = quoteData.bomItems.map((item, index) => ({
+          ...item,
+          quoteId: quote.id,
+          sortOrder: index,
+          unitPrice: item.unitPrice?.toString() || null,
+          totalPrice: item.totalPrice?.toString() || null,
+        }));
+        const insertedBomItems = await tx
+          .insert(bomItems)
+          .values(bomItemsWithQuoteId)
+          .returning();
+        createdBomItems.push(...insertedBomItems);
+      }
 
-    return {
-      quote,
-      bomItems: createdBomItems,
-      costItems: createdCostItems,
-    };
+      // Insert cost items with quoteId
+      const createdCostItems: CostItem[] = [];
+      if (quoteData.costItems.length > 0) {
+        const costItemsWithQuoteId = quoteData.costItems.map((item, index) => ({
+          ...item,
+          quoteId: quote.id,
+          sortOrder: index,
+          unitPrice: item.unitPrice.toString(),
+          totalPrice: item.totalPrice.toString(),
+        }));
+        const insertedCostItems = await tx
+          .insert(costItems)
+          .values(costItemsWithQuoteId)
+          .returning();
+        createdCostItems.push(...insertedCostItems);
+      }
+
+      return {
+        quote,
+        bomItems: createdBomItems,
+        costItems: createdCostItems,
+      };
+    });
   }
 
   async getQuote(id: string): Promise<QuoteData | undefined> {
@@ -117,13 +119,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteQuote(id: string): Promise<boolean> {
-    // Delete related records first
-    await db.delete(bomItems).where(eq(bomItems.quoteId, id));
-    await db.delete(costItems).where(eq(costItems.quoteId, id));
-    
-    // Delete the quote
-    const result = await db.delete(quotes).where(eq(quotes.id, id));
-    return (result.rowCount || 0) > 0;
+    return await db.transaction(async (tx) => {
+      // Delete the quote (related records will be deleted automatically due to CASCADE)
+      const result = await tx.delete(quotes).where(eq(quotes.id, id));
+      return (result.rowCount || 0) > 0;
+    });
   }
 
   async updateQuote(id: string, quoteData: {
@@ -131,58 +131,60 @@ export class DatabaseStorage implements IStorage {
     bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
     costItems: Array<Omit<InsertCostItem, 'quoteId'>>
   }): Promise<QuoteData | undefined> {
-    // Update the quote
-    const [updatedQuote] = await db
-      .update(quotes)
-      .set(quoteData.quote)
-      .where(eq(quotes.id, id))
-      .returning();
-
-    if (!updatedQuote) return undefined;
-
-    // Delete existing BOM and cost items
-    await db.delete(bomItems).where(eq(bomItems.quoteId, id));
-    await db.delete(costItems).where(eq(costItems.quoteId, id));
-
-    // Insert new BOM items
-    const createdBomItems: BomItem[] = [];
-    if (quoteData.bomItems.length > 0) {
-      const bomItemsWithQuoteId = quoteData.bomItems.map((item, index) => ({
-        ...item,
-        quoteId: id,
-        sortOrder: index,
-        unitPrice: item.unitPrice?.toString() || null,
-        totalPrice: item.totalPrice?.toString() || null,
-      }));
-      const insertedBomItems = await db
-        .insert(bomItems)
-        .values(bomItemsWithQuoteId)
+    return await db.transaction(async (tx) => {
+      // Update the quote
+      const [updatedQuote] = await tx
+        .update(quotes)
+        .set(quoteData.quote)
+        .where(eq(quotes.id, id))
         .returning();
-      createdBomItems.push(...insertedBomItems);
-    }
 
-    // Insert new cost items
-    const createdCostItems: CostItem[] = [];
-    if (quoteData.costItems.length > 0) {
-      const costItemsWithQuoteId = quoteData.costItems.map((item, index) => ({
-        ...item,
-        quoteId: id,
-        sortOrder: index,
-        unitPrice: item.unitPrice.toString(),
-        totalPrice: item.totalPrice.toString(),
-      }));
-      const insertedCostItems = await db
-        .insert(costItems)
-        .values(costItemsWithQuoteId)
-        .returning();
-      createdCostItems.push(...insertedCostItems);
-    }
+      if (!updatedQuote) return undefined;
 
-    return {
-      quote: updatedQuote,
-      bomItems: createdBomItems,
-      costItems: createdCostItems,
-    };
+      // Delete existing BOM and cost items
+      await tx.delete(bomItems).where(eq(bomItems.quoteId, id));
+      await tx.delete(costItems).where(eq(costItems.quoteId, id));
+
+      // Insert new BOM items
+      const createdBomItems: BomItem[] = [];
+      if (quoteData.bomItems.length > 0) {
+        const bomItemsWithQuoteId = quoteData.bomItems.map((item, index) => ({
+          ...item,
+          quoteId: id,
+          sortOrder: index,
+          unitPrice: item.unitPrice?.toString() || null,
+          totalPrice: item.totalPrice?.toString() || null,
+        }));
+        const insertedBomItems = await tx
+          .insert(bomItems)
+          .values(bomItemsWithQuoteId)
+          .returning();
+        createdBomItems.push(...insertedBomItems);
+      }
+
+      // Insert new cost items
+      const createdCostItems: CostItem[] = [];
+      if (quoteData.costItems.length > 0) {
+        const costItemsWithQuoteId = quoteData.costItems.map((item, index) => ({
+          ...item,
+          quoteId: id,
+          sortOrder: index,
+          unitPrice: item.unitPrice.toString(),
+          totalPrice: item.totalPrice.toString(),
+        }));
+        const insertedCostItems = await tx
+          .insert(costItems)
+          .values(costItemsWithQuoteId)
+          .returning();
+        createdCostItems.push(...insertedCostItems);
+      }
+
+      return {
+        quote: updatedQuote,
+        bomItems: createdBomItems,
+        costItems: createdCostItems,
+      };
+    });
   }
 }
 
