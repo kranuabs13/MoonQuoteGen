@@ -246,9 +246,6 @@ export default function QuotePreview({
                   <h2 className="text-3xl text-black mb-2 leading-tight">
                     {quoteSubject || 'Cisco Catalyst Switch'}
                   </h2>
-                  <h3 className="text-2xl text-black">
-                    9300 48-port PoE+
-                  </h3>
                   
                   {/* Customer Logo */}
                   {customerLogo && (
