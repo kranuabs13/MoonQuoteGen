@@ -4,6 +4,7 @@ import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
 import { useState } from "react";
 import emetLogo from "@assets/generated_images/EMET_Dorcom_corporate_logo_aadd2e1e.png";
 import techDiagram from "@assets/image_1757577458643.png";
+import frameImage from "@assets/image_1757577550193.png";
 
 interface BomItem {
   no: number;
@@ -163,14 +164,15 @@ export default function QuotePreview({
             data-testid="preview-document"
           >
             {/* Page 1 - Cover Page with Border Frame */}
-            <div className="relative bg-white h-[297mm] p-0 overflow-hidden">
-              {/* Blue/Purple Decorative Frame */}
-              <div className="absolute inset-0">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800"></div>
-                <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800"></div>
-                <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-blue-600 via-purple-600 to-blue-800"></div>
-                <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-600 via-purple-600 to-blue-800"></div>
-              </div>
+            <div 
+              className="relative h-[297mm] p-0 overflow-hidden"
+              style={{
+                backgroundImage: `url(${frameImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            >
 
               {/* EMET Dorcom Logo - Top Right */}
               <div className="absolute top-6 right-6">
@@ -185,15 +187,15 @@ export default function QuotePreview({
               {/* Cover Page Content */}
               <div className="relative h-full flex flex-col justify-center items-center text-center px-16">
                 <div 
-                  className="cursor-pointer hover:bg-blue-50 p-4 rounded transition-colors w-full"
+                  className="cursor-pointer hover:bg-white/10 p-4 rounded transition-colors w-full"
                   onClick={() => onSectionClick?.('header')}
                   data-testid="preview-header"
                 >
-                  <h1 className="text-4xl font-bold text-gray-900 mb-4">Quotation For</h1>
-                  <h2 className="text-3xl text-gray-700 mb-2 leading-tight">
+                  <h1 className="text-4xl font-bold text-white mb-4">Quotation For</h1>
+                  <h2 className="text-3xl text-white mb-2 leading-tight">
                     {quoteSubject || 'Cisco Catalyst Switch'}
                   </h2>
-                  <h3 className="text-2xl text-gray-600">
+                  <h3 className="text-2xl text-white">
                     9300 48-port PoE+
                   </h3>
                   
@@ -211,12 +213,12 @@ export default function QuotePreview({
                 </div>
 
                 {/* Bottom Info */}
-                <div className="absolute bottom-16 right-16 text-right text-lg text-gray-600">
+                <div className="absolute bottom-16 right-16 text-right text-lg text-white">
                   <div>{salesPersonName || 'David Gilboa'} | {formatDate(date)} | Ver {version || '1'}</div>
                 </div>
 
                 {/* Page Number */}
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
+                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold">
                   1
                 </div>
               </div>
