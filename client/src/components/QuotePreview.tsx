@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
 import { useState } from "react";
-import emetLogo from "@assets/generated_images/EMET_Dorcom_corporate_logo_aadd2e1e.png";
+import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
 
@@ -174,12 +174,12 @@ export default function QuotePreview({
               }}
             >
 
-              {/* EMET Dorcom Logo - Top Right */}
-              <div className="absolute top-6 right-6">
+              {/* EMET Dorcom Logo - Top Center, Large */}
+              <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
                 <img 
                   src={emetLogo} 
                   alt="EMET Dorcom" 
-                  className="h-16 w-auto"
+                  className="h-24 w-auto"
                   data-testid="emet-logo-page1"
                 />
               </div>
@@ -191,11 +191,11 @@ export default function QuotePreview({
                   onClick={() => onSectionClick?.('header')}
                   data-testid="preview-header"
                 >
-                  <h1 className="text-4xl font-bold text-white mb-4">Quotation For</h1>
-                  <h2 className="text-3xl text-white mb-2 leading-tight">
+                  <h1 className="text-4xl font-bold text-black mb-4">Quotation For</h1>
+                  <h2 className="text-3xl text-black mb-2 leading-tight">
                     {quoteSubject || 'Cisco Catalyst Switch'}
                   </h2>
-                  <h3 className="text-2xl text-white">
+                  <h3 className="text-2xl text-black">
                     9300 48-port PoE+
                   </h3>
                   
@@ -213,12 +213,12 @@ export default function QuotePreview({
                 </div>
 
                 {/* Bottom Info */}
-                <div className="absolute bottom-16 right-16 text-right text-lg text-white">
+                <div className="absolute bottom-16 right-16 text-right text-lg text-black">
                   <div>{salesPersonName || 'David Gilboa'} | {formatDate(date)} | Ver {version || '1'}</div>
                 </div>
 
                 {/* Page Number */}
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold">
+                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-black text-lg font-bold">
                   1
                 </div>
               </div>
@@ -287,7 +287,7 @@ export default function QuotePreview({
               </div>
             </div>
 
-            {/* Page 3 - BOM Section */}
+            {/* Page 3 - Combined BOM & Costs Section */}
             {bomEnabled && (
               <div className="bg-white h-[297mm] p-0 page-break-before relative">
                 {/* EMET Dorcom Logo - Top Left */}
@@ -295,43 +295,88 @@ export default function QuotePreview({
                   <img 
                     src={emetLogo} 
                     alt="EMET Dorcom" 
-                    className="h-12 w-auto"
+                    className="h-10 w-auto"
                     data-testid="emet-logo-page3"
                   />
                 </div>
 
                 <div className="pt-20 px-12 pb-12">
+                  {/* BOM Section */}
                   <div 
-                    className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                    className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-8"
                     onClick={() => onSectionClick?.('bom')}
                     data-testid="preview-bom"
                   >
-                    <h3 className="text-2xl font-bold mb-6 text-gray-900">BOM</h3>
-                    <h4 className="text-xl font-semibold mb-6 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
+                    <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
+                    <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
                     
                     {bomItems.length > 0 ? (
-                      <table className="w-full border-collapse text-sm">
+                      <table className="w-full border-collapse text-xs mb-6">
                         <thead>
                           <tr className="border-b-2 border-gray-400">
-                            <th className="text-left p-3 font-bold bg-gray-50">NO</th>
-                            <th className="text-left p-3 font-bold bg-gray-50">PN</th>
-                            <th className="text-left p-3 font-bold bg-gray-50">Product Description</th>
-                            <th className="text-left p-3 font-bold bg-gray-50">QTY</th>
+                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>NO</th>
+                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>PN</th>
+                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
+                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
                           </tr>
                         </thead>
                         <tbody>
                           {bomItems.map((item, index) => (
                             <tr key={index} className="border-b border-gray-200">
-                              <td className="p-3">{item.no}</td>
-                              <td className="p-3 font-medium">{item.partNumber}</td>
-                              <td className="p-3">{item.productDescription}</td>
-                              <td className="p-3">{item.quantity}</td>
+                              <td className="p-2">{item.no}</td>
+                              <td className="p-2 font-medium">{item.partNumber}</td>
+                              <td className="p-2">{item.productDescription}</td>
+                              <td className="p-2">{item.quantity}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     ) : (
-                      <p className="text-gray-500 italic text-center py-12">No BOM items added yet</p>
+                      <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
+                    )}
+                  </div>
+
+                  {/* Costs Section */}
+                  <div 
+                    className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                    onClick={() => onSectionClick?.('costs')}
+                    data-testid="preview-costs"
+                  >
+                    <h3 className="text-2xl font-bold mb-4 text-gray-900">Costs</h3>
+                    
+                    {costItems.length > 0 ? (
+                      <div>
+                        <table className="w-full border-collapse text-sm mb-6">
+                          <thead>
+                            <tr className="border-b-2 border-gray-400">
+                              <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
+                              <th className="text-center p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
+                              <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>
+                              <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {costItems.map((item, index) => (
+                              <tr key={index} className="border-b border-gray-200">
+                                <td className="p-3">{item.productDescription}</td>
+                                <td className="p-3 text-center">{item.quantity}</td>
+                                <td className="p-3 text-right">{formatCurrency(item.unitPrice)}</td>
+                                <td className="p-3 text-right font-medium">
+                                  {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        <div className="text-right border-t-2 border-gray-400 pt-4">
+                          <div className="text-xl font-bold">
+                            Grand Total: {formatCurrency(grandTotal)}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic text-center py-6">No cost items added yet</p>
                     )}
                   </div>
                 </div>
@@ -343,78 +388,15 @@ export default function QuotePreview({
               </div>
             )}
 
-            {/* Page 4 - Costs Section */}
+            {/* Page 4 - Payment Terms */}
             <div className="bg-white h-[297mm] p-0 page-break-before relative">
               {/* EMET Dorcom Logo - Top Left */}
               <div className="absolute top-6 left-6">
                 <img 
                   src={emetLogo} 
                   alt="EMET Dorcom" 
-                  className="h-12 w-auto"
+                  className="h-10 w-auto"
                   data-testid="emet-logo-page4"
-                />
-              </div>
-
-              <div className="pt-20 px-12 pb-12">
-                <div 
-                  className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-12"
-                  onClick={() => onSectionClick?.('costs')}
-                  data-testid="preview-costs"
-                >
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Costs</h3>
-                  
-                  {costItems.length > 0 ? (
-                    <div>
-                      <table className="w-full border-collapse text-base mb-8">
-                        <thead>
-                          <tr className="border-b-2 border-gray-400">
-                            <th className="text-left p-3 font-bold bg-gray-50">Product Description</th>
-                            <th className="text-center p-3 font-bold bg-gray-50">QTY</th>
-                            <th className="text-right p-3 font-bold bg-gray-50">Unit Price</th>
-                            <th className="text-right p-3 font-bold bg-gray-50">Total Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {costItems.map((item, index) => (
-                            <tr key={index} className="border-b border-gray-200">
-                              <td className="p-3">{item.productDescription}</td>
-                              <td className="p-3 text-center">{item.quantity}</td>
-                              <td className="p-3 text-right">{formatCurrency(item.unitPrice)}</td>
-                              <td className="p-3 text-right font-medium">
-                                {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      
-                      <div className="text-right border-t-2 border-gray-400 pt-4">
-                        <div className="text-xl font-bold">
-                          Grand Total: {formatCurrency(grandTotal)}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic text-center py-12">No cost items added yet</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Page Number */}
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                4
-              </div>
-            </div>
-
-            {/* Page 5 - Payment Terms */}
-            <div className="bg-white h-[297mm] p-0 page-break-before relative">
-              {/* EMET Dorcom Logo - Top Left */}
-              <div className="absolute top-6 left-6">
-                <img 
-                  src={emetLogo} 
-                  alt="EMET Dorcom" 
-                  className="h-12 w-auto"
-                  data-testid="emet-logo-page5"
                 />
               </div>
 
@@ -444,19 +426,19 @@ export default function QuotePreview({
 
               {/* Page Number */}
               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                5
+                4
               </div>
             </div>
 
-            {/* Page 6 - IP Section */}
+            {/* Page 5 - IP Section */}
             <div className="bg-white h-[297mm] p-0 page-break-before relative">
               {/* EMET Dorcom Logo - Top Left */}
               <div className="absolute top-6 left-6">
                 <img 
                   src={emetLogo} 
                   alt="EMET Dorcom" 
-                  className="h-12 w-auto"
-                  data-testid="emet-logo-page6"
+                  className="h-10 w-auto"
+                  data-testid="emet-logo-page5"
                 />
               </div>
 
@@ -503,10 +485,10 @@ export default function QuotePreview({
                   <table className="w-full text-base border-collapse">
                     <thead>
                       <tr className="border-b-2 border-gray-400">
-                        <th className="text-left p-3 font-bold bg-gray-50">Name</th>
-                        <th className="text-left p-3 font-bold bg-gray-50">Role</th>
-                        <th className="text-left p-3 font-bold bg-gray-50">Phone</th>
-                        <th className="text-left p-3 font-bold bg-gray-50">Email</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Name</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Role</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Phone</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Email</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -523,7 +505,7 @@ export default function QuotePreview({
 
               {/* Page Number */}
               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                6
+                5
               </div>
             </div>
           </div>
