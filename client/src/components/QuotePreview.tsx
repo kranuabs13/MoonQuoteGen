@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
 import { useState } from "react";
 import emetLogo from "@assets/generated_images/EMET_Dorcom_corporate_logo_aadd2e1e.png";
-import techDiagram from "@assets/generated_images/IT_infrastructure_solutions_diagram_4fdd571e.png";
+import techDiagram from "@assets/image_1757577458643.png";
 
 interface BomItem {
   no: number;
