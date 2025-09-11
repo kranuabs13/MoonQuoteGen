@@ -326,4 +326,9 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* PDF page break control */
+  .page-break-before {
+    break-before: page;
+  }
 }

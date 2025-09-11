@@ -23,6 +23,8 @@ export const bomItems = pgTable("bom_items", {
   partNumber: text("part_number").notNull(),
   productDescription: text("product_description").notNull(),
   quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
@@ -46,6 +48,9 @@ export const insertQuoteSchema = createInsertSchema(quotes).omit({
 export const insertBomItemSchema = createInsertSchema(bomItems).omit({
   id: true,
   quoteId: true,
+}).extend({
+  unitPrice: z.number().optional().transform(val => val?.toString()),
+  totalPrice: z.number().optional().transform(val => val?.toString()),
 });
 
 export const insertCostItemSchema = createInsertSchema(costItems).omit({
@@ -83,6 +88,8 @@ export type QuoteFormData = {
     partNumber: string;
     productDescription: string;
     quantity: number;
+    unitPrice?: number;
+    totalPrice?: number;
   }>;
   costItems: Array<{
     productDescription: string;

@@ -13,6 +13,8 @@ interface BomItem {
   partNumber: string;
   productDescription: string;
   quantity: number;
+  unitPrice?: number;
+  totalPrice?: number;
 }
 
 interface BomSectionProps {
@@ -27,6 +29,8 @@ interface ColumnVisibility {
   productDescription: boolean;
   partNumber: boolean;
   no: boolean;
+  unitPrice: boolean;
+  totalPrice: boolean;
 }
 
 export default function BomSection({
@@ -40,6 +44,8 @@ export default function BomSection({
     productDescription: true,
     partNumber: true,
     no: true,
+    unitPrice: false,
+    totalPrice: false,
   });
 
   const addBomItem = () => {
@@ -48,6 +54,8 @@ export default function BomSection({
       partNumber: '',
       productDescription: '',
       quantity: 1,
+      unitPrice: columnVisibility.unitPrice ? 0 : undefined,
+      totalPrice: columnVisibility.totalPrice ? 0 : undefined,
     };
     onBomItemsChange([...bomItems, newItem]);
     console.log('BOM item added');
@@ -61,10 +69,24 @@ export default function BomSection({
     console.log('BOM item removed');
   };
 
-  const updateBomItem = (index: number, field: keyof BomItem, value: string | number) => {
-    const updatedItems = bomItems.map((item, i) => 
-      i === index ? { ...item, [field]: value } : item
-    );
+  const updateBomItem = (index: number, field: keyof BomItem, value: string | number, shouldRecalculate = false) => {
+    const updatedItems = bomItems.map((item, i) => {
+      if (i === index) {
+        const updatedItem = { ...item, [field]: value };
+        console.log('Updating BOM item', index, field, value, 'Updated item:', updatedItem);
+        
+        // Auto-calculate total price when quantity or unitPrice changes
+        if ((field === 'quantity' || field === 'unitPrice') && updatedItem.unitPrice && updatedItem.quantity) {
+          const totalPrice = updatedItem.quantity * updatedItem.unitPrice;
+          console.log('Auto-calculating total price:', updatedItem.quantity, 'x', updatedItem.unitPrice, '=', totalPrice);
+          updatedItem.totalPrice = totalPrice;
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    });
+    console.log('Updated BOM items:', updatedItems);
     onBomItemsChange(updatedItems);
   };
 
@@ -75,11 +97,15 @@ export default function BomSection({
     
     const newItems: BomItem[] = rows.map((row, index) => {
       const cells = row.split('\t');
+      const quantity = parseInt(cells[2]) || 1;
+      const unitPrice = parseFloat(cells[3]) || undefined;
       return {
         no: bomItems.length + index + 1,
         partNumber: cells[1] || '',
         productDescription: cells[0] || '',
-        quantity: parseInt(cells[2]) || 1,
+        quantity,
+        unitPrice: columnVisibility.unitPrice ? unitPrice : undefined,
+        totalPrice: columnVisibility.totalPrice && unitPrice ? quantity * unitPrice : undefined,
       };
     });
 
@@ -88,7 +114,22 @@ export default function BomSection({
   };
 
   const toggleColumnVisibility = (column: keyof ColumnVisibility) => {
-    setColumnVisibility(prev => ({ ...prev, [column]: !prev[column] }));
+    setColumnVisibility(prev => {
+      const newVisibility = { ...prev, [column]: !prev[column] };
+      
+      // When enabling cost columns, backfill calculations for existing items
+      if (column === 'totalPrice' && newVisibility.totalPrice) {
+        const updatedItems = bomItems.map(item => ({
+          ...item,
+          totalPrice: item.unitPrice !== undefined && item.unitPrice !== null 
+            ? item.quantity * item.unitPrice 
+            : undefined
+        }));
+        onBomItemsChange(updatedItems);
+      }
+      
+      return newVisibility;
+    });
     console.log(`Column ${column} visibility toggled`);
   };
 
@@ -149,6 +190,24 @@ export default function BomSection({
                 />
                 <Label htmlFor="col-no" className="text-sm">NO</Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="col-unit-price"
+                  checked={columnVisibility.unitPrice}
+                  onCheckedChange={() => toggleColumnVisibility('unitPrice')}
+                  data-testid="checkbox-col-unit-price"
+                />
+                <Label htmlFor="col-unit-price" className="text-sm">Unit Price</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="col-total-price"
+                  checked={columnVisibility.totalPrice}
+                  onCheckedChange={() => toggleColumnVisibility('totalPrice')}
+                  data-testid="checkbox-col-total-price"
+                />
+                <Label htmlFor="col-total-price" className="text-sm">Total Price</Label>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -176,6 +235,8 @@ export default function BomSection({
                   {columnVisibility.partNumber && <TableHead>Part Number</TableHead>}
                   {columnVisibility.productDescription && <TableHead>Product Description</TableHead>}
                   {columnVisibility.qty && <TableHead>QTY</TableHead>}
+                  {columnVisibility.unitPrice && <TableHead>Unit Price</TableHead>}
+                  {columnVisibility.totalPrice && <TableHead>Total Price</TableHead>}
                   <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -219,10 +280,52 @@ export default function BomSection({
                         <Input
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => updateBomItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          onChange={(e) => {
+                            const newQty = parseInt(e.target.value) || 1;
+                            console.log('Quantity changed to:', newQty, 'for item', index);
+                            updateBomItem(index, 'quantity', newQty);
+                          }}
                           className="w-20"
                           min="1"
                           data-testid={`input-bom-quantity-${index}`}
+                        />
+                      </TableCell>
+                    )}
+                    {columnVisibility.unitPrice && (
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.unitPrice || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            console.log('Unit price input changed:', value, 'for item', index);
+                            const unitPrice = value === '' ? 0 : parseFloat(value) || 0;
+                            console.log('Parsed unit price:', unitPrice);
+                            updateBomItem(index, 'unitPrice', unitPrice);
+                          }}
+                          placeholder="0.00"
+                          className="w-24"
+                          step="0.01"
+                          min="0"
+                          data-testid={`input-bom-unit-price-${index}`}
+                        />
+                      </TableCell>
+                    )}
+                    {columnVisibility.totalPrice && (
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.totalPrice || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const totalPrice = value === '' ? 0 : parseFloat(value) || 0;
+                            updateBomItem(index, 'totalPrice', totalPrice);
+                          }}
+                          placeholder="0.00"
+                          className="w-24"
+                          step="0.01"
+                          min="0"
+                          data-testid={`input-bom-total-price-${index}`}
                         />
                       </TableCell>
                     )}

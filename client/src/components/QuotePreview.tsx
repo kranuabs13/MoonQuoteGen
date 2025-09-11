@@ -11,6 +11,8 @@ interface BomItem {
   partNumber: string;
   productDescription: string;
   quantity: number;
+  unitPrice?: number;
+  totalPrice?: number;
 }
 
 interface CostItem {
@@ -87,9 +89,58 @@ export default function QuotePreview({
     console.log(`Zoom ${direction}: ${zoom}%`);
   };
 
-  const handleExport = (format: 'pdf' | 'word') => {
+  const handleExport = async (format: 'pdf' | 'word') => {
     console.log(`Exporting as ${format.toUpperCase()}`);
-    // TODO: Implement actual export functionality
+    
+    if (format === 'pdf') {
+      try {
+        // Import html2pdf dynamically
+        const html2pdf = (await import('html2pdf.js')).default;
+        
+        // Get the preview document element
+        const element = document.querySelector('[data-testid="preview-document"]');
+        if (!element) {
+          console.error('Preview document not found');
+          return;
+        }
+        
+        // Create safe filename by replacing invalid characters
+        const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
+        const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
+        const filename = `${safeSubject}_${safeDate}_v${version || '1'}.pdf`;
+        
+        // Configure PDF options
+        const opt = {
+          margin: 0,
+          filename,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { 
+            scale: Math.min(2, window.devicePixelRatio || 1),
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff'
+          },
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { mode: ['css', 'legacy'], before: '.page-break-before' }
+        };
+        
+        // Generate and download PDF
+        console.log('Generating PDF...');
+        await html2pdf().set(opt).from(element).save();
+        console.log('PDF export completed');
+        
+      } catch (error) {
+        console.error('PDF export failed:', error);
+      }
+    } else if (format === 'word') {
+      // Word export placeholder - would require different library
+      console.log('Word export not yet implemented');
+    }
   };
 
   return (
@@ -165,7 +216,7 @@ export default function QuotePreview({
           >
             {/* Page 1 - Cover Page with Border Frame */}
             <div 
-              className="relative h-[297mm] p-0 overflow-hidden bg-white"
+              className="relative h-[297mm] p-0 overflow-hidden bg-white page-break-before"
               style={{
                 backgroundImage: `url(${frameImage})`,
                 backgroundSize: 'cover',
@@ -311,26 +362,37 @@ export default function QuotePreview({
                     <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
                     
                     {bomItems.length > 0 ? (
-                      <table className="w-full border-collapse text-xs mb-6">
-                        <thead>
-                          <tr className="border-b-2 border-gray-400">
-                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>NO</th>
-                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>PN</th>
-                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
-                            <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {bomItems.map((item, index) => (
-                            <tr key={index} className="border-b border-gray-200">
-                              <td className="p-2">{item.no}</td>
-                              <td className="p-2 font-medium">{item.partNumber}</td>
-                              <td className="p-2">{item.productDescription}</td>
-                              <td className="p-2">{item.quantity}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      (() => {
+                        const hasUnitPrice = bomItems.some(item => item.unitPrice !== undefined && item.unitPrice !== null);
+                        const hasTotalPrice = bomItems.some(item => item.totalPrice !== undefined && item.totalPrice !== null);
+                        
+                        return (
+                          <table className="w-full border-collapse text-xs mb-6">
+                            <thead>
+                              <tr className="border-b-2 border-gray-400">
+                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>NO</th>
+                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>PN</th>
+                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
+                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
+                                {hasUnitPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
+                                {hasTotalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bomItems.map((item, index) => (
+                                <tr key={index} className="border-b border-gray-200">
+                                  <td className="p-2">{item.no}</td>
+                                  <td className="p-2 font-medium">{item.partNumber}</td>
+                                  <td className="p-2">{item.productDescription}</td>
+                                  <td className="p-2">{item.quantity}</td>
+                                  {hasUnitPrice && <td className="p-2">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
+                                  {hasTotalPrice && <td className="p-2">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()
                     ) : (
                       <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
                     )}
@@ -482,11 +544,24 @@ export default function QuotePreview({
                 {/* Contact */}
                 <div>
                   <h3 className="text-2xl font-bold mb-6 text-gray-900">Contact</h3>
-                  <div className="text-base">
-                    <p className="leading-relaxed">
-                      <strong>{salesPersonName || 'David Gilboa'}</strong> - Account Manager - {contact.phone} - {contact.email}
-                    </p>
-                  </div>
+                  <table className="w-full text-base border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-400">
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Name</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Role</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Phone</th>
+                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-3">{salesPersonName || 'David Gilboa'}</td>
+                        <td className="p-3">Account Manager</td>
+                        <td className="p-3">{contact.phone}</td>
+                        <td className="p-3">{contact.email}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
