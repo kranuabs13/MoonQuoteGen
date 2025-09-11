@@ -11,11 +11,19 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   // Quote operations
-  saveQuote(quoteData: Omit<QuoteData, 'quote'> & { quote: InsertQuote }): Promise<QuoteData>;
+  saveQuote(quoteData: {
+    quote: InsertQuote,
+    bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
+    costItems: Array<Omit<InsertCostItem, 'quoteId'>>
+  }): Promise<QuoteData>;
   getQuote(id: string): Promise<QuoteData | undefined>;
   getAllQuotes(): Promise<Quote[]>;
   deleteQuote(id: string): Promise<boolean>;
-  updateQuote(id: string, quoteData: Omit<QuoteData, 'quote'> & { quote: Partial<InsertQuote> }): Promise<QuoteData | undefined>;
+  updateQuote(id: string, quoteData: {
+    quote: Partial<InsertQuote>,
+    bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
+    costItems: Array<Omit<InsertCostItem, 'quoteId'>>
+  }): Promise<QuoteData | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -38,7 +46,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Quote operations
-  async saveQuote(quoteData: Omit<QuoteData, 'quote'> & { quote: InsertQuote }): Promise<QuoteData> {
+  async saveQuote(quoteData: {
+    quote: InsertQuote,
+    bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
+    costItems: Array<Omit<InsertCostItem, 'quoteId'>>
+  }): Promise<QuoteData> {
     // Insert quote and get the created record
     const [quote] = await db
       .insert(quotes)
@@ -114,7 +126,11 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount || 0) > 0;
   }
 
-  async updateQuote(id: string, quoteData: Omit<QuoteData, 'quote'> & { quote: Partial<InsertQuote> }): Promise<QuoteData | undefined> {
+  async updateQuote(id: string, quoteData: {
+    quote: Partial<InsertQuote>,
+    bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
+    costItems: Array<Omit<InsertCostItem, 'quoteId'>>
+  }): Promise<QuoteData | undefined> {
     // Update the quote
     const [updatedQuote] = await db
       .update(quotes)
