@@ -7,6 +7,8 @@ import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
 import type { ColumnVisibility, ContactInfo } from "@shared/schema";
 import html2pdf from 'html2pdf.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface BomItem {
   no: number;
@@ -118,21 +120,43 @@ export default function QuotePreview({
         
         console.log('Generating PDF with direct download...');
         
+        // Wait for all images to load
+        const images = element.querySelectorAll('img');
+        const imagePromises = Array.from(images).map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            // Timeout after 10 seconds
+            setTimeout(reject, 10000);
+          });
+        });
+        
+        try {
+          await Promise.all(imagePromises);
+          console.log('All images loaded successfully');
+        } catch (error) {
+          console.warn('Some images failed to load, continuing with PDF generation');
+        }
+        
         // Configure html2pdf options for reliable output
         const options = {
-          margin: [10, 10, 10, 10], // Standard margins
+          margin: [8, 8, 8, 8],
           filename: filename,
           image: { 
             type: 'jpeg', 
-            quality: 0.98 // High quality
+            quality: 0.95
           },
           html2canvas: { 
-            scale: 2, // Good balance of quality and performance
+            scale: 2,
             useCORS: true,
-            allowTaint: false, // Prevent cross-origin issues
+            allowTaint: true, // Allow cross-origin content
             backgroundColor: '#ffffff',
-            logging: false,
-            letterRendering: true
+            logging: true, // Enable logging to debug issues
+            letterRendering: true,
+            onrendered: function(canvas: any) {
+              console.log('Canvas rendered with dimensions:', canvas.width, 'x', canvas.height);
+            }
           },
           jsPDF: { 
             unit: 'mm', 
@@ -145,15 +169,59 @@ export default function QuotePreview({
           }
         };
         
-        // Generate and download PDF directly
-        await html2pdf()
-          .set(options)
-          .from(element)
-          .save()
-          .catch((error: any) => {
-            console.error('PDF generation failed:', error);
-            throw error;
+        console.log('Starting PDF generation with element:', element);
+        console.log('Element dimensions:', element.offsetWidth, 'x', element.offsetHeight);
+        
+        // Try html2pdf first, fallback to manual method if it fails
+        try {
+          await html2pdf()
+            .set(options)
+            .from(element)
+            .save();
+        } catch (error) {
+          console.warn('html2pdf failed, trying manual method:', error);
+          
+          // Fallback: Use html2canvas + jsPDF directly for better control
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: true,
+            width: element.scrollWidth,
+            height: element.scrollHeight,
           });
+          
+          console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height);
+          
+          // Create PDF with A4 dimensions
+          const pdf = new jsPDF('portrait', 'mm', 'a4');
+          const imgWidth = 210; // A4 width in mm
+          const pageHeight = 295; // A4 height in mm (297 - margins)
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          
+          let position = 0;
+          
+          // Convert canvas to image
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          
+          // Add the image to PDF, handling multiple pages if needed
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          
+          // Add new pages if content is longer than one page
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+          
+          // Download the PDF
+          pdf.save(filename);
+          console.log('Manual PDF generation completed');
+        }
         
         console.log('PDF download completed successfully');
         
