@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Upload, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import type { ColumnVisibility } from "@shared/schema";
 
 interface BomItem {
   no: number;
@@ -20,33 +20,20 @@ interface BomItem {
 interface BomSectionProps {
   bomEnabled: boolean;
   bomItems: BomItem[];
+  columnVisibility: ColumnVisibility;
   onBomEnabledChange: (enabled: boolean) => void;
   onBomItemsChange: (items: BomItem[]) => void;
-}
-
-interface ColumnVisibility {
-  qty: boolean;
-  productDescription: boolean;
-  partNumber: boolean;
-  no: boolean;
-  unitPrice: boolean;
-  totalPrice: boolean;
+  onColumnVisibilityChange: (visibility: ColumnVisibility) => void;
 }
 
 export default function BomSection({
   bomEnabled,
   bomItems,
+  columnVisibility,
   onBomEnabledChange,
   onBomItemsChange,
+  onColumnVisibilityChange,
 }: BomSectionProps) {
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    qty: true,
-    productDescription: true,
-    partNumber: true,
-    no: true,
-    unitPrice: false,
-    totalPrice: false,
-  });
 
   const addBomItem = () => {
     const newItem: BomItem = {
@@ -75,8 +62,10 @@ export default function BomSection({
         const updatedItem = { ...item, [field]: value };
         console.log('Updating BOM item', index, field, value, 'Updated item:', updatedItem);
         
-        // Auto-calculate total price when quantity or unitPrice changes
-        if ((field === 'quantity' || field === 'unitPrice') && updatedItem.unitPrice && updatedItem.quantity) {
+        // Auto-calculate total price when quantity or unitPrice changes (handle zero values properly)
+        if ((field === 'quantity' || field === 'unitPrice') && 
+            updatedItem.unitPrice != null && updatedItem.quantity != null && 
+            updatedItem.unitPrice >= 0 && updatedItem.quantity >= 0) {
           const totalPrice = updatedItem.quantity * updatedItem.unitPrice;
           console.log('Auto-calculating total price:', updatedItem.quantity, 'x', updatedItem.unitPrice, '=', totalPrice);
           updatedItem.totalPrice = totalPrice;
@@ -114,22 +103,20 @@ export default function BomSection({
   };
 
   const toggleColumnVisibility = (column: keyof ColumnVisibility) => {
-    setColumnVisibility(prev => {
-      const newVisibility = { ...prev, [column]: !prev[column] };
-      
-      // When enabling cost columns, backfill calculations for existing items
-      if (column === 'totalPrice' && newVisibility.totalPrice) {
-        const updatedItems = bomItems.map(item => ({
-          ...item,
-          totalPrice: item.unitPrice !== undefined && item.unitPrice !== null 
-            ? item.quantity * item.unitPrice 
-            : undefined
-        }));
-        onBomItemsChange(updatedItems);
-      }
-      
-      return newVisibility;
-    });
+    const newVisibility = { ...columnVisibility, [column]: !columnVisibility[column] };
+    
+    // When enabling cost columns, backfill calculations for existing items
+    if (column === 'totalPrice' && newVisibility.totalPrice) {
+      const updatedItems = bomItems.map(item => ({
+        ...item,
+        totalPrice: item.unitPrice !== undefined && item.unitPrice !== null 
+          ? item.quantity * item.unitPrice 
+          : undefined
+      }));
+      onBomItemsChange(updatedItems);
+    }
+    
+    onColumnVisibilityChange(newVisibility);
     console.log(`Column ${column} visibility toggled`);
   };
 

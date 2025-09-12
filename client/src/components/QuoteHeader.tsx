@@ -3,8 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Upload, X, Settings, User, Phone, Mail } from "lucide-react";
 import { useState } from "react";
+import type { ContactInfo } from "@shared/schema";
 
 interface QuoteHeaderProps {
   quoteSubject: string;
@@ -14,6 +16,10 @@ interface QuoteHeaderProps {
   date: string;
   version: string;
   paymentTerms: string;
+  currency: string;
+  bomEnabled: boolean;
+  costsEnabled: boolean;
+  contactInfo: ContactInfo;
   onQuoteSubjectChange: (value: string) => void;
   onCustomerCompanyChange: (value: string) => void;
   onCustomerLogoChange: (file: File | null) => void;
@@ -21,6 +27,10 @@ interface QuoteHeaderProps {
   onDateChange: (value: string) => void;
   onVersionChange: (value: string) => void;
   onPaymentTermsChange: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
+  onBomEnabledChange: (enabled: boolean) => void;
+  onCostsEnabledChange: (enabled: boolean) => void;
+  onContactInfoChange: (contactInfo: ContactInfo) => void;
 }
 
 export default function QuoteHeader({
@@ -31,6 +41,10 @@ export default function QuoteHeader({
   date,
   version,
   paymentTerms,
+  currency,
+  bomEnabled,
+  costsEnabled,
+  contactInfo,
   onQuoteSubjectChange,
   onCustomerCompanyChange,
   onCustomerLogoChange,
@@ -38,6 +52,10 @@ export default function QuoteHeader({
   onDateChange,
   onVersionChange,
   onPaymentTermsChange,
+  onCurrencyChange,
+  onBomEnabledChange,
+  onCostsEnabledChange,
+  onContactInfoChange,
 }: QuoteHeaderProps) {
   const [dragActive, setDragActive] = useState(false);
 
@@ -147,7 +165,7 @@ export default function QuoteHeader({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor="sales-person">Sales Person</Label>
             <Select value={salesPersonName} onValueChange={onSalesPersonChange}>
@@ -182,23 +200,115 @@ export default function QuoteHeader({
               onChange={(e) => onVersionChange(e.target.value)}
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Select value={currency} onValueChange={onCurrencyChange}>
+              <SelectTrigger data-testid="select-currency">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">USD ($)</SelectItem>
+                <SelectItem value="NIS">NIS (₪)</SelectItem>
+                <SelectItem value="EUR">EUR (€)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="payment-terms">Payment Terms</Label>
-          <Select value={paymentTerms} onValueChange={onPaymentTermsChange}>
-            <SelectTrigger data-testid="select-payment-terms">
-              <SelectValue placeholder="Select payment terms" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Current +30">Current +30</SelectItem>
-              <SelectItem value="Current +60">Current +60</SelectItem>
-              <SelectItem value="Cash on Delivery">Cash on Delivery</SelectItem>
-              <SelectItem value="Net 15">Net 15</SelectItem>
-              <SelectItem value="Net 30">Net 30</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="payment-terms">Payment Terms</Label>
+            <Select value={paymentTerms} onValueChange={onPaymentTermsChange}>
+              <SelectTrigger data-testid="select-payment-terms">
+                <SelectValue placeholder="Select payment terms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Current +30">Current +30</SelectItem>
+                <SelectItem value="Current +60">Current +60</SelectItem>
+                <SelectItem value="Cash on Delivery">Cash on Delivery</SelectItem>
+                <SelectItem value="Net 15">Net 15</SelectItem>
+                <SelectItem value="Net 30">Net 30</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Section Toggles</Label>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="bom-enabled"
+                  checked={bomEnabled}
+                  onCheckedChange={onBomEnabledChange}
+                  data-testid="switch-bom-section"
+                />
+                <Label htmlFor="bom-enabled" className="text-sm">BOM Section</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="costs-enabled"
+                  checked={costsEnabled}
+                  onCheckedChange={onCostsEnabledChange}
+                  data-testid="switch-costs-section"
+                />
+                <Label htmlFor="costs-enabled" className="text-sm">Costs Section</Label>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Contact Information Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact-name">Sales Person Name</Label>
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="contact-name"
+                    data-testid="input-contact-name"
+                    placeholder="Sales person name"
+                    value={contactInfo.salesPersonName}
+                    onChange={(e) => onContactInfoChange({ ...contactInfo, salesPersonName: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-phone">Phone</Label>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="contact-phone"
+                    data-testid="input-contact-phone"
+                    placeholder="Phone number"
+                    value={contactInfo.phone}
+                    onChange={(e) => onContactInfoChange({ ...contactInfo, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-email">Email</Label>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    data-testid="input-contact-email"
+                    placeholder="Email address"
+                    value={contactInfo.email}
+                    onChange={(e) => onContactInfoChange({ ...contactInfo, email: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </CardContent>
     </Card>
   );

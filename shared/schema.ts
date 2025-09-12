@@ -92,6 +92,23 @@ export type QuoteData = {
   costItems: CostItem[];
 };
 
+// Column visibility settings for BOM table
+export type ColumnVisibility = {
+  no: boolean;
+  partNumber: boolean;
+  productDescription: boolean;
+  qty: boolean;
+  unitPrice: boolean;
+  totalPrice: boolean;
+};
+
+// Contact information for quotes
+export type ContactInfo = {
+  salesPersonName: string;
+  phone: string;
+  email: string;
+};
+
 // Form data types for the input components
 export type QuoteFormData = {
   quoteSubject: string;
@@ -101,7 +118,11 @@ export type QuoteFormData = {
   date: string;
   version: string;
   paymentTerms: string;
+  currency: string;
   bomEnabled: boolean;
+  costsEnabled: boolean;
+  columnVisibility: ColumnVisibility;
+  contactInfo: ContactInfo;
   bomItems: Array<{
     no: number;
     partNumber: string;

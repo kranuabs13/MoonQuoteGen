@@ -5,6 +5,7 @@ import { useState } from "react";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
+import type { ColumnVisibility, ContactInfo } from "@shared/schema";
 
 interface BomItem {
   no: number;
@@ -31,7 +32,11 @@ interface QuotePreviewProps {
   date: string;
   version: string;
   paymentTerms: string;
+  currency: string;
   bomEnabled: boolean;
+  costsEnabled: boolean;
+  columnVisibility: ColumnVisibility;
+  contactInfo: ContactInfo;
   bomItems: BomItem[];
   costItems: CostItem[];
   onSectionClick?: (section: string) => void;
@@ -45,7 +50,11 @@ export default function QuotePreview({
   date,
   version,
   paymentTerms,
+  currency,
   bomEnabled,
+  costsEnabled,
+  columnVisibility,
+  contactInfo,
   bomItems,
   costItems,
   onSectionClick,
@@ -54,9 +63,18 @@ export default function QuotePreview({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    // Map UI currency codes to valid ISO 4217 codes and locales
+    const currencyConfig = {
+      USD: { code: 'USD', locale: 'en-US' },
+      NIS: { code: 'ILS', locale: 'he-IL' }, // NIS maps to ILS (Israeli New Shekel)
+      EUR: { code: 'EUR', locale: 'de-DE' }
+    };
+    
+    const config = currencyConfig[currency as keyof typeof currencyConfig] || currencyConfig.USD;
+    
+    return new Intl.NumberFormat(config.locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: config.code,
     }).format(amount);
   };
 
@@ -69,17 +87,8 @@ export default function QuotePreview({
     return sum + (item.isDiscount ? -item.totalPrice : item.totalPrice);
   }, 0);
 
-  const getSalesPersonContact = (name: string) => {
-    const contacts: Record<string, { phone: string; email: string }> = {
-      'David Gilboa': { phone: '+97252-750-3069', email: 'david.gilboa@emetdorcom.co.il' },
-      'Sarah Cohen': { phone: '+97252-750-3070', email: 'sarah.cohen@emetdorcom.co.il' },
-      'Michael Levi': { phone: '+97252-750-3071', email: 'michael.levi@emetdorcom.co.il' },
-      'Rachel Ben-David': { phone: '+97252-750-3072', email: 'rachel.bendavid@emetdorcom.co.il' },
-    };
-    return contacts[name] || { phone: '+97252-750-3069', email: 'contact@emetdorcom.co.il' };
-  };
-
-  const contact = getSalesPersonContact(salesPersonName);
+  // Use contactInfo from props instead of hardcoded contacts
+  const contact = contactInfo;
 
   const handleZoom = (direction: 'in' | 'out') => {
     setZoom(prev => {
@@ -94,45 +103,81 @@ export default function QuotePreview({
     
     if (format === 'pdf') {
       try {
-        // Import html2pdf dynamically
-        const html2pdf = (await import('html2pdf.js')).default;
+        // Create safe filename
+        const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
+        const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
+        const filename = `${safeSubject}_${safeDate}_v${version || '1'}.pdf`;
         
-        // Get the preview document element
-        const element = document.querySelector('[data-testid="preview-document"]');
+        // Use browser's native print to PDF capability for text-selectable output
+        const element = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
         if (!element) {
           console.error('Preview document not found');
           return;
         }
         
-        // Create safe filename by replacing invalid characters
-        const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
-        const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
-        const filename = `${safeSubject}_${safeDate}_v${version || '1'}.pdf`;
+        // Create a new window for printing with proper styles
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          console.error('Could not open print window');
+          return;
+        }
         
-        // Configure PDF options
-        const opt = {
-          margin: 0,
-          filename,
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { 
-            scale: Math.min(2, window.devicePixelRatio || 1),
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff'
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait',
-            compress: true
-          },
-          pagebreak: { mode: ['css', 'legacy'], before: '.page-break-before' }
+        // Get all stylesheets from the current document
+        const styles = Array.from(document.styleSheets)
+          .map(styleSheet => {
+            try {
+              return Array.from(styleSheet.cssRules)
+                .map(rule => rule.cssText)
+                .join('\n');
+            } catch (e) {
+              // Handle cross-origin stylesheets
+              return '';
+            }
+          })
+          .join('\n');
+        
+        // Set up the print document with proper PDF-optimized styles
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${filename}</title>
+              <style>
+                ${styles}
+                @media print {
+                  body { margin: 0; padding: 0; }
+                  .page-break-before { page-break-before: always; }
+                  .no-print { display: none !important; }
+                  /* Ensure images render properly */
+                  img { max-width: 100% !important; height: auto !important; }
+                  /* Better text rendering */
+                  * { 
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+                  /* Prevent content from being cut off */
+                  .h-\\[297mm\\] { height: auto !important; min-height: 297mm; }
+                }
+              </style>
+            </head>
+            <body>
+              ${element.outerHTML}
+            </body>
+          </html>
+        `);
+        
+        printWindow.document.close();
+        
+        // Wait for images to load, then trigger print
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 1000);
         };
         
-        // Generate and download PDF
-        console.log('Generating PDF...');
-        await html2pdf().set(opt).from(element).save();
-        console.log('PDF export completed');
+        console.log('PDF export initiated - use browser print dialog to save as PDF');
         
       } catch (error) {
         console.error('PDF export failed:', error);
@@ -232,6 +277,8 @@ export default function QuotePreview({
                   alt="EMET Dorcom" 
                   className="h-24 w-auto"
                   data-testid="emet-logo-page1"
+                  style={{ imageRendering: 'crisp-edges', maxWidth: 'none' }}
+                  crossOrigin="anonymous"
                 />
               </div>
 
@@ -336,7 +383,7 @@ export default function QuotePreview({
             </div>
 
             {/* Page 3 - Combined BOM & Costs Section */}
-            {bomEnabled && (
+            {(bomEnabled || costsEnabled) && (
               <div className="bg-white h-[297mm] p-0 page-break-before relative">
                 {/* EMET Dorcom Logo - Top Left */}
                 <div className="absolute top-6 left-6">
@@ -350,94 +397,91 @@ export default function QuotePreview({
 
                 <div className="pt-20 px-12 pb-12">
                   {/* BOM Section */}
-                  <div 
-                    className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-8"
-                    onClick={() => onSectionClick?.('bom')}
-                    data-testid="preview-bom"
-                  >
-                    <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
-                    <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
-                    
-                    {bomItems.length > 0 ? (
-                      (() => {
-                        const hasUnitPrice = bomItems.some(item => item.unitPrice !== undefined && item.unitPrice !== null);
-                        const hasTotalPrice = bomItems.some(item => item.totalPrice !== undefined && item.totalPrice !== null);
-                        
-                        return (
-                          <table className="w-full border-collapse text-xs mb-6">
-                            <thead>
-                              <tr className="border-b-2 border-gray-400">
-                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>NO</th>
-                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>PN</th>
-                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
-                                <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
-                                {hasUnitPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
-                                {hasTotalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {bomItems.map((item, index) => (
-                                <tr key={index} className="border-b border-gray-200">
-                                  <td className="p-2">{item.no}</td>
-                                  <td className="p-2 font-medium">{item.partNumber}</td>
-                                  <td className="p-2">{item.productDescription}</td>
-                                  <td className="p-2">{item.quantity}</td>
-                                  {hasUnitPrice && <td className="p-2">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
-                                  {hasTotalPrice && <td className="p-2">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        );
-                      })()
-                    ) : (
-                      <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
-                    )}
-                  </div>
-
-                  {/* Costs Section */}
-                  <div 
-                    className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
-                    onClick={() => onSectionClick?.('costs')}
-                    data-testid="preview-costs"
-                  >
-                    <h3 className="text-2xl font-bold mb-4 text-gray-900">Costs</h3>
-                    
-                    {costItems.length > 0 ? (
-                      <div>
-                        <table className="w-full border-collapse text-sm mb-6">
+                  {bomEnabled && (
+                    <div 
+                      className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-8"
+                      onClick={() => onSectionClick?.('bom')}
+                      data-testid="preview-bom"
+                    >
+                      <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
+                      <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
+                      
+                      {bomItems.length > 0 ? (
+                        <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
                           <thead>
                             <tr className="border-b-2 border-gray-400">
-                              <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
-                              <th className="text-center p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>QTY</th>
-                              <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>
-                              <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>
+                              {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>NO</th>}
+                              {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>PN</th>}
+                              {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>}
+                              {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>}
+                              {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
+                              {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {costItems.map((item, index) => (
+                            {bomItems.map((item, index) => (
                               <tr key={index} className="border-b border-gray-200">
-                                <td className="p-3">{item.productDescription}</td>
-                                <td className="p-3 text-center">{item.quantity}</td>
-                                <td className="p-3 text-right">{formatCurrency(item.unitPrice)}</td>
-                                <td className="p-3 text-right font-medium">
-                                  {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
-                                </td>
+                                {columnVisibility.no && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.no}</td>}
+                                {columnVisibility.partNumber && <td className="p-2 font-medium border-r border-gray-200 whitespace-nowrap">{item.partNumber}</td>}
+                                {columnVisibility.productDescription && <td className="p-2 border-r border-gray-200">{item.productDescription}</td>}
+                                {columnVisibility.qty && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.quantity}</td>}
+                                {columnVisibility.unitPrice && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
+                                {columnVisibility.totalPrice && <td className="p-2 whitespace-nowrap">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
                               </tr>
                             ))}
                           </tbody>
                         </table>
-                        
-                        <div className="text-right border-t-2 border-gray-400 pt-4">
-                          <div className="text-xl font-bold">
-                            Grand Total: {formatCurrency(grandTotal)}
+                      ) : (
+                        <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Costs Section */}
+                  {costsEnabled && (
+                    <div 
+                      className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                      onClick={() => onSectionClick?.('costs')}
+                      data-testid="preview-costs"
+                    >
+                      <h3 className="text-2xl font-bold mb-4 text-gray-900">Costs</h3>
+                      
+                      {costItems.length > 0 ? (
+                        <div>
+                          <table className="w-full border-collapse text-sm mb-6 border border-gray-300">
+                            <thead>
+                              <tr className="border-b-2 border-gray-400">
+                                <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
+                                <th className="text-center p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>
+                                <th className="text-right p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>
+                                <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {costItems.map((item, index) => (
+                                <tr key={index} className="border-b border-gray-200">
+                                  <td className="p-3 border-r border-gray-200">{item.productDescription}</td>
+                                  <td className="p-3 text-center border-r border-gray-200">{item.quantity}</td>
+                                  <td className="p-3 text-right border-r border-gray-200">{formatCurrency(item.unitPrice)}</td>
+                                  <td className="p-3 text-right font-medium">
+                                    {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          
+                          <div className="text-right border-t-2 border-gray-400 pt-4">
+                            <div className="text-xl font-bold">
+                              Grand Total: {formatCurrency(grandTotal)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 italic text-center py-6">No cost items added yet</p>
-                    )}
-                  </div>
+                      ) : (
+                        <p className="text-gray-500 italic text-center py-6">No cost items added yet</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Page Number */}
@@ -541,21 +585,21 @@ export default function QuotePreview({
                 {/* Contact */}
                 <div>
                   <h3 className="text-2xl font-bold mb-6 text-gray-900">Contact</h3>
-                  <table className="w-full text-base border-collapse">
+                  <table className="w-full text-base border-collapse border border-gray-300">
                     <thead>
                       <tr className="border-b-2 border-gray-400">
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Name</th>
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Role</th>
-                        <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Phone</th>
+                        <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Name</th>
+                        <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Role</th>
+                        <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Phone</th>
                         <th className="text-left p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Email</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr className="border-b border-gray-200">
-                        <td className="p-3">{salesPersonName || 'David Gilboa'}</td>
-                        <td className="p-3">Account Manager</td>
-                        <td className="p-3">{contact.phone}</td>
-                        <td className="p-3">{contact.email}</td>
+                        <td className="p-3 border-r border-gray-200 whitespace-nowrap">{contact.salesPersonName || contactInfo.salesPersonName || 'David Gilboa'}</td>
+                        <td className="p-3 border-r border-gray-200 whitespace-nowrap">Account Manager</td>
+                        <td className="p-3 border-r border-gray-200 whitespace-nowrap">{contact.phone || contactInfo.phone}</td>
+                        <td className="p-3 whitespace-nowrap break-all">{contact.email || contactInfo.email}</td>
                       </tr>
                     </tbody>
                   </table>
