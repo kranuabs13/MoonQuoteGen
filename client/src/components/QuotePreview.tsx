@@ -103,9 +103,6 @@ export default function QuotePreview({
     console.log(`Exporting as ${format.toUpperCase()}`);
     
     if (format === 'pdf') {
-      // Store original zoom for restoration
-      const originalZoom = zoom;
-      
       try {
         // Create safe filename
         const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
@@ -121,48 +118,31 @@ export default function QuotePreview({
         
         console.log('Generating PDF with direct download...');
         
-        // Reset zoom to 100% for consistent PDF generation
-        setZoom(100);
-        
-        // Wait for zoom change to take effect
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Configure html2pdf options for high quality output
+        // Configure html2pdf options for reliable output
         const options = {
-          margin: [8, 8, 8, 8], // Reduced margins for more content
+          margin: [10, 10, 10, 10], // Standard margins
           filename: filename,
           image: { 
-            type: 'png', // PNG for better quality
-            quality: 1.0 // Maximum quality
+            type: 'jpeg', 
+            quality: 0.98 // High quality
           },
           html2canvas: { 
-            scale: 3, // Higher resolution for crisp output
+            scale: 2, // Good balance of quality and performance
             useCORS: true,
-            allowTaint: true, // Allow cross-origin images
-            foreignObjectRendering: true,
-            letterRendering: true,
-            logging: false,
+            allowTaint: false, // Prevent cross-origin issues
             backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0,
-            width: 794, // A4 width in pixels at 96 DPI (210mm)
-            height: element.scrollHeight,
-            windowWidth: 794,
-            windowHeight: element.scrollHeight,
-            imageTimeout: 15000 // Longer timeout for images
+            logging: false,
+            letterRendering: true
           },
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait',
-            compress: false, // Don't compress for better quality
-            precision: 16
+            orientation: 'portrait'
           },
           pagebreak: { 
-            mode: ['avoid-all', 'css'],
+            mode: ['css', 'legacy'],
             before: '.page-break-before'
-          },
-          enableLinks: false
+          }
         };
         
         // Generate and download PDF directly
@@ -175,15 +155,10 @@ export default function QuotePreview({
             throw error;
           });
         
-        // Restore original zoom
-        setZoom(originalZoom);
-        
         console.log('PDF download completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
-        // Restore original zoom even on error
-        setZoom(originalZoom);
         // Fallback: show user-friendly error message
         alert('PDF export failed. Please check the console for details and try again.');
       }
