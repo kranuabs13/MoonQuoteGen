@@ -99,93 +99,49 @@ export default function QuotePreview({
   };
 
   const handleExport = async (format: 'pdf' | 'word') => {
-    // Create unique export ID to avoid conflicts with multiple simultaneous exports
-    const exportId = Math.random().toString(36).substr(2, 9);
-    console.log(`[Export ${exportId}] Starting ${format.toUpperCase()} export`);
+    console.log(`Exporting as ${format.toUpperCase()}`);
     
     if (format === 'pdf') {
       try {
-        // Create safe filename with timestamp to ensure uniqueness
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
-        const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
-        const filename = `${safeSubject}_${safeDate}_v${version || '1'}_${timestamp}.pdf`;
+        // Save current quote data to localStorage so the print page can access it
+        const quoteData = {
+          quote: {
+            subject: quoteSubject,
+            customer: customerCompany,
+            salesPerson: salesPersonName,
+            terms: paymentTerms,
+            currency: currency
+          },
+          bomItems,
+          costItems,
+          columnVisibility,
+          bomEnabled,
+          costsEnabled,
+          date,
+          version,
+          contact: contactInfo
+        };
         
-        // Get the preview document element fresh each time
-        const element = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
-        if (!element) {
-          console.error(`[Export ${exportId}] Preview document not found`);
-          console.log(`[Export ${exportId}] Please ensure the preview is fully loaded before exporting`);
+        localStorage.setItem('quoteData', JSON.stringify(quoteData));
+        console.log('Quote data saved for printing');
+        
+        // Open print page in new window and trigger native print dialog
+        const printWindow = window.open('/print', '_blank');
+        
+        if (!printWindow) {
+          console.error('Print window was blocked by popup blocker');
+          console.log('Please allow popups and try again, or right-click the Export to PDF button and select "Open in new tab"');
           return;
         }
         
-        console.log(`[Export ${exportId}] Generating PDF from preview (${element.scrollWidth}x${element.scrollHeight})`);
-        
-        // Import html2pdf dynamically (this should be cached after first import)
-        const html2pdf = (await import('html2pdf.js')).default;
-        
-        // Configure PDF options with unique identifiers
-        const options = {
-          margin: 0,
-          filename: filename,
-          image: { type: 'jpeg', quality: 1.0 },
-          html2canvas: { 
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0,
-            width: element.scrollWidth,
-            height: element.scrollHeight,
-            logging: false, // Reduce noise in console
-            onrendered: () => console.log(`[Export ${exportId}] Canvas rendering complete`)
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait',
-            compress: true
-          },
-          pagebreak: { 
-            mode: ['avoid-all', 'css', 'legacy'],
-            before: '.page-break-before',
-            after: '.page-break-after'
-          }
-        };
-        
-        // Create a completely independent clone for this export
-        const clonedElement = element.cloneNode(true) as HTMLElement;
-        
-        // Apply export-specific styles (won't affect other exports)
-        clonedElement.style.width = '210mm';
-        clonedElement.style.backgroundColor = 'white';
-        clonedElement.style.fontFamily = 'Inter, sans-serif';
-        clonedElement.style.position = 'relative';
-        clonedElement.style.zIndex = '1';
-        
-        // Force all elements to print with colors
-        const allElements = clonedElement.querySelectorAll('*') as NodeListOf<HTMLElement>;
-        allElements.forEach(el => {
-          (el.style as any).webkitPrintColorAdjust = 'exact';
-          el.style.printColorAdjust = 'exact';
-          (el.style as any).colorAdjust = 'exact';
-        });
-        
-        // Generate and download the PDF (each export is completely independent)
-        await html2pdf()
-          .set(options)
-          .from(clonedElement)
-          .save();
-        
-        console.log(`[Export ${exportId}] PDF export completed successfully: ${filename}`);
+        console.log('Print page opened - native PDF generation will start automatically');
         
       } catch (error) {
-        console.error(`[Export ${exportId}] PDF export failed:`, error);
-        console.log(`[Export ${exportId}] You can try exporting again - each export is independent`);
+        console.error('PDF export failed:', error);
+        console.log('Export failed. Please try again.');
       }
     } else if (format === 'word') {
-      console.log(`[Export ${exportId}] Word export not yet implemented`);
+      console.log('Word export not yet implemented');
       console.log('Word export feature is on the roadmap. Please use PDF export for now.');
     }
   };
