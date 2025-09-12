@@ -99,29 +99,32 @@ export default function QuotePreview({
   };
 
   const handleExport = async (format: 'pdf' | 'word') => {
-    console.log(`Exporting as ${format.toUpperCase()}`);
+    // Create unique export ID to avoid conflicts with multiple simultaneous exports
+    const exportId = Math.random().toString(36).substr(2, 9);
+    console.log(`[Export ${exportId}] Starting ${format.toUpperCase()} export`);
     
     if (format === 'pdf') {
       try {
-        // Create safe filename
+        // Create safe filename with timestamp to ensure uniqueness
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
         const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
-        const filename = `${safeSubject}_${safeDate}_v${version || '1'}.pdf`;
+        const filename = `${safeSubject}_${safeDate}_v${version || '1'}_${timestamp}.pdf`;
         
-        // Get the preview document element
+        // Get the preview document element fresh each time
         const element = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
         if (!element) {
-          console.error('Preview document not found - ensure preview-document testid exists');
-          alert('Could not find preview to export. Please make sure the preview is loaded.');
+          console.error(`[Export ${exportId}] Preview document not found`);
+          console.log(`[Export ${exportId}] Please ensure the preview is fully loaded before exporting`);
           return;
         }
         
-        console.log('Generating PDF from exact preview...');
+        console.log(`[Export ${exportId}] Generating PDF from preview (${element.scrollWidth}x${element.scrollHeight})`);
         
-        // Import html2pdf dynamically
+        // Import html2pdf dynamically (this should be cached after first import)
         const html2pdf = (await import('html2pdf.js')).default;
         
-        // Configure PDF options for exact reproduction
+        // Configure PDF options with unique identifiers
         const options = {
           margin: 0,
           filename: filename,
@@ -134,7 +137,9 @@ export default function QuotePreview({
             scrollX: 0,
             scrollY: 0,
             width: element.scrollWidth,
-            height: element.scrollHeight
+            height: element.scrollHeight,
+            logging: false, // Reduce noise in console
+            onrendered: () => console.log(`[Export ${exportId}] Canvas rendering complete`)
           },
           jsPDF: { 
             unit: 'mm', 
@@ -149,37 +154,39 @@ export default function QuotePreview({
           }
         };
         
-        // Create a clone of the element to avoid modifying the original
+        // Create a completely independent clone for this export
         const clonedElement = element.cloneNode(true) as HTMLElement;
         
-        // Apply print-specific styles to the clone
+        // Apply export-specific styles (won't affect other exports)
         clonedElement.style.width = '210mm';
         clonedElement.style.backgroundColor = 'white';
         clonedElement.style.fontFamily = 'Inter, sans-serif';
+        clonedElement.style.position = 'relative';
+        clonedElement.style.zIndex = '1';
         
         // Force all elements to print with colors
         const allElements = clonedElement.querySelectorAll('*') as NodeListOf<HTMLElement>;
         allElements.forEach(el => {
-          el.style.webkitPrintColorAdjust = 'exact';
+          (el.style as any).webkitPrintColorAdjust = 'exact';
           el.style.printColorAdjust = 'exact';
-          el.style.colorAdjust = 'exact';
+          (el.style as any).colorAdjust = 'exact';
         });
         
-        // Generate and download the PDF
+        // Generate and download the PDF (each export is completely independent)
         await html2pdf()
           .set(options)
           .from(clonedElement)
           .save();
         
-        console.log('PDF export completed successfully');
+        console.log(`[Export ${exportId}] PDF export completed successfully: ${filename}`);
         
       } catch (error) {
-        console.error('PDF export failed:', error);
-        alert('PDF export failed. Please check the console for details and try again.');
+        console.error(`[Export ${exportId}] PDF export failed:`, error);
+        console.log(`[Export ${exportId}] You can try exporting again - each export is independent`);
       }
     } else if (format === 'word') {
-      console.log('Word export not yet implemented');
-      alert('Word export is not yet implemented. Please use PDF export for now.');
+      console.log(`[Export ${exportId}] Word export not yet implemented`);
+      console.log('Word export feature is on the roadmap. Please use PDF export for now.');
     }
   };
 
