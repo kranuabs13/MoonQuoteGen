@@ -103,6 +103,9 @@ export default function QuotePreview({
     console.log(`Exporting as ${format.toUpperCase()}`);
     
     if (format === 'pdf') {
+      // Store original zoom for restoration
+      const originalZoom = zoom;
+      
       try {
         // Create safe filename
         const safeDate = formatDate(date).replace(/[/\\:*?"<>|]/g, '_');
@@ -118,34 +121,48 @@ export default function QuotePreview({
         
         console.log('Generating PDF with direct download...');
         
+        // Reset zoom to 100% for consistent PDF generation
+        setZoom(100);
+        
+        // Wait for zoom change to take effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Configure html2pdf options for high quality output
         const options = {
-          margin: [12, 12, 12, 12], // mm margins: top, right, bottom, left
+          margin: [8, 8, 8, 8], // Reduced margins for more content
           filename: filename,
           image: { 
-            type: 'jpeg', 
-            quality: 0.95 // High quality images
+            type: 'png', // PNG for better quality
+            quality: 1.0 // Maximum quality
           },
           html2canvas: { 
-            scale: 2, // Higher resolution
+            scale: 3, // Higher resolution for crisp output
             useCORS: true,
+            allowTaint: true, // Allow cross-origin images
+            foreignObjectRendering: true,
             letterRendering: true,
-            allowTaint: false,
+            logging: false,
             backgroundColor: '#ffffff',
             scrollX: 0,
             scrollY: 0,
-            width: element.scrollWidth,
-            height: element.scrollHeight
+            width: 794, // A4 width in pixels at 96 DPI (210mm)
+            height: element.scrollHeight,
+            windowWidth: 794,
+            windowHeight: element.scrollHeight,
+            imageTimeout: 15000 // Longer timeout for images
           },
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
             orientation: 'portrait',
-            compress: true
+            compress: false, // Don't compress for better quality
+            precision: 16
           },
           pagebreak: { 
-            mode: ['avoid-all', 'css'] 
-          }
+            mode: ['avoid-all', 'css'],
+            before: '.page-break-before'
+          },
+          enableLinks: false
         };
         
         // Generate and download PDF directly
@@ -158,10 +175,15 @@ export default function QuotePreview({
             throw error;
           });
         
+        // Restore original zoom
+        setZoom(originalZoom);
+        
         console.log('PDF download completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
+        // Restore original zoom even on error
+        setZoom(originalZoom);
         // Fallback: show user-friendly error message
         alert('PDF export failed. Please check the console for details and try again.');
       }
@@ -239,7 +261,11 @@ export default function QuotePreview({
               zoom: `${zoom}%`,
               width: '210mm',
               minHeight: '297mm',
-              fontFamily: 'Inter, sans-serif'
+              fontFamily: 'Inter, sans-serif',
+              // Better PDF rendering
+              WebkitPrintColorAdjust: 'exact',
+              colorAdjust: 'exact',
+              printColorAdjust: 'exact'
             }}
             data-testid="preview-document"
           >
