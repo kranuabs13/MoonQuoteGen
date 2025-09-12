@@ -1,8 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Download, FileText, Maximize2, Printer } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
@@ -62,7 +61,6 @@ export default function QuotePreview({
 }: QuotePreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [, setLocation] = useLocation();
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -100,33 +98,6 @@ export default function QuotePreview({
     console.log(`Zoom ${direction}: ${zoom}%`);
   };
 
-  const handlePrintExact = () => {
-    console.log('Preparing exact PDF print...');
-    
-    // Save current quote data to localStorage for the print page
-    const quoteData = {
-      quoteSubject,
-      customerCompany,
-      customerLogo,
-      salesPersonName,
-      date,
-      version,
-      paymentTerms,
-      currency,
-      bomEnabled,
-      costsEnabled,
-      columnVisibility,
-      contactInfo,
-      bomItems,
-      costItems
-    };
-    
-    localStorage.setItem('quoteFormData', JSON.stringify(quoteData));
-    
-    // Navigate to print page which will auto-trigger print dialog
-    setLocation('/print');
-  };
-
   const handleExport = async (format: 'pdf' | 'word') => {
     console.log(`Exporting as ${format.toUpperCase()}`);
     
@@ -144,41 +115,144 @@ export default function QuotePreview({
           return;
         }
         
-        console.log('Generating PDF with @react-pdf/renderer...');
+        console.log('Generating PDF with exact preview content...');
         
-        // Prepare the quote data for server-side generation
-        const quoteData = {
-          quote: {
-            subject: quoteSubject,
-            customer: customerCompany,
-            salesPerson: salesPersonName,
-            terms: paymentTerms,
-            currency: currency
-          },
-          bomItems,
-          costItems
-        };
+        // Get all computed styles and create a complete HTML document
+        const styles = Array.from(document.styleSheets)
+          .map(styleSheet => {
+            try {
+              return Array.from(styleSheet.cssRules)
+                .map(rule => rule.cssText)
+                .join('\n');
+            } catch (e) {
+              console.warn('Could not access stylesheet:', e);
+              return '';
+            }
+          })
+          .join('\n');
         
-        // Call the server-side PDF generation API
-        const response = await fetch('/api/generate-pdf', {
+        // Create complete HTML document with all styles
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Quote PDF</title>
+            <style>
+              /* Reset and base styles */
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              html, body { font-family: Inter, sans-serif; }
+              
+              /* Embedded styles from Tailwind and custom CSS */
+              ${styles}
+              
+              /* Print-specific styles for PDF */
+              @page { 
+                size: A4; 
+                margin: 0; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+              }
+              
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color-adjust: exact;
+                width: 210mm;
+                margin: 0;
+                padding: 0;
+              }
+              
+              .page-break-after { 
+                page-break-after: always; 
+                break-after: page; 
+              }
+              
+              /* Force background images and colors */
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${element.outerHTML}
+          </body>
+          </html>
+        `;
+        
+        // Send HTML content to server for PDF conversion
+        const response = await fetch('/api/generate-exact-pdf', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            quoteData,
-            filename
+            htmlContent,
+            filename,
+            options: {
+              format: 'A4',
+              margin: 0,
+              printBackground: true,
+              preferCSSPageSize: true
+            }
           })
         });
         
         if (!response.ok) {
-          throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+          // Fallback to the old PDFKit method if exact PDF service isn't available
+          console.log('Exact PDF service not available, falling back to basic PDF...');
+          
+          const quoteData = {
+            quote: {
+              subject: quoteSubject,
+              customer: customerCompany,
+              salesPerson: salesPersonName,
+              terms: paymentTerms,
+              currency: currency
+            },
+            bomItems,
+            costItems
+          };
+          
+          const fallbackResponse = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              quoteData,
+              filename
+            })
+          });
+          
+          if (!fallbackResponse.ok) {
+            throw new Error(`PDF generation failed: ${fallbackResponse.status}`);
+          }
+          
+          const blob = await fallbackResponse.blob();
+          
+          // Create download link and trigger download
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          console.log('PDF download completed (fallback mode)');
+          return;
         }
         
-        // Get the PDF blob from the response
+        // Get the exact PDF blob from the response
         const blob = await response.blob();
         
-        // Create a download link and trigger the download
+        // Create download link and trigger download
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
@@ -189,15 +263,13 @@ export default function QuotePreview({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        console.log('PDF download completed successfully');
+        console.log('Exact PDF download completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
-        // Fallback: show user-friendly error message
         alert('PDF export failed. Please check the console for details and try again.');
       }
     } else if (format === 'word') {
-      // Word export placeholder - would require different library
       console.log('Word export not yet implemented');
       alert('Word export is not yet implemented. Please use PDF export for now.');
     }
@@ -244,20 +316,11 @@ export default function QuotePreview({
             <Button
               variant="default"
               size="sm"
-              onClick={handlePrintExact}
-              data-testid="button-print-exact"
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print Exact PDF
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => handleExport('pdf')}
               data-testid="button-export-pdf"
             >
               <Download className="h-4 w-4 mr-2" />
-              PDF (Simple)
+              Export to PDF
             </Button>
             <Button
               variant="outline"
