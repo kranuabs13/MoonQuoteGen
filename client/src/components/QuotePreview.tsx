@@ -139,21 +139,20 @@ export default function QuotePreview({
           console.warn('Some images failed to load, continuing with PDF generation');
         }
         
-        // Configure html2pdf options for reliable output
+        // Configure html2pdf options for A4 sizing and proper pagination
         const options = {
-          margin: [8, 8, 8, 8],
+          margin: [10, 10, 10, 10], // 10mm margins on all sides
           filename: filename,
           image: { 
             type: 'jpeg', 
-            quality: 0.95
+            quality: 0.98
           },
           html2canvas: { 
-            scale: 2,
+            scale: 1.5, // Reduced scale for better fitting
             useCORS: true,
-            allowTaint: true, // Allow cross-origin content
+            allowTaint: true,
             backgroundColor: '#ffffff',
-            logging: true, // Enable logging to debug issues
-            letterRendering: true,
+            logging: true,
             onrendered: function(canvas: any) {
               console.log('Canvas rendered with dimensions:', canvas.width, 'x', canvas.height);
             }
@@ -161,11 +160,14 @@ export default function QuotePreview({
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait'
+            orientation: 'portrait',
+            compress: true
           },
           pagebreak: { 
-            mode: ['css', 'legacy'],
-            before: '.page-break-before'
+            mode: 'avoid-all', // Avoid breaking elements
+            before: [],
+            after: [],
+            avoid: ['tr', 'th', 'td', '.quote-section']
           }
         };
         
@@ -183,7 +185,7 @@ export default function QuotePreview({
           
           // Fallback: Use html2canvas + jsPDF directly for better control
           const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 1.5, // Match the scale from html2pdf
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
@@ -194,33 +196,63 @@ export default function QuotePreview({
           
           console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height);
           
-          // Create PDF with A4 dimensions
-          const pdf = new jsPDF('portrait', 'mm', 'a4');
-          const imgWidth = 210; // A4 width in mm
-          const pageHeight = 295; // A4 height in mm (297 - margins)
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          let heightLeft = imgHeight;
+          // Create PDF with proper A4 dimensions and margins
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+          });
           
-          let position = 0;
+          // A4 dimensions with margins
+          const pageWidth = 210; // A4 width in mm
+          const pageHeight = 297; // A4 height in mm
+          const margin = 10; // 10mm margins
+          const contentWidth = pageWidth - (margin * 2); // 190mm
+          const contentHeight = pageHeight - (margin * 2); // 277mm
+          
+          // Calculate scaling to fit content width
+          const imgWidth = contentWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
           
           // Convert canvas to image
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgData = canvas.toDataURL('image/jpeg', 0.98);
           
-          // Add the image to PDF, handling multiple pages if needed
-          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-          
-          // Add new pages if content is longer than one page
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+          if (imgHeight <= contentHeight) {
+            // Content fits on one page
+            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+          } else {
+            // Content needs multiple pages
+            let yPosition = 0;
+            let pageNumber = 0;
+            
+            while (yPosition < imgHeight) {
+              if (pageNumber > 0) {
+                pdf.addPage();
+              }
+              
+              // Calculate how much content to show on this page
+              const remainingHeight = imgHeight - yPosition;
+              const pageContentHeight = Math.min(contentHeight, remainingHeight);
+              
+              // Add the image portion for this page
+              pdf.addImage(
+                imgData, 
+                'JPEG', 
+                margin, 
+                margin - yPosition, // Offset the image to show the right portion
+                imgWidth, 
+                imgHeight
+              );
+              
+              yPosition += contentHeight;
+              pageNumber++;
+            }
           }
           
           // Download the PDF
           pdf.save(filename);
-          console.log('Manual PDF generation completed');
+          console.log('Manual PDF generation completed with', pdf.getNumberOfPages(), 'pages');
         }
         
         console.log('PDF download completed successfully');
