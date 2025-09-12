@@ -6,6 +6,7 @@ import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
 import type { ColumnVisibility, ContactInfo } from "@shared/schema";
+import html2pdf from 'html2pdf.js';
 
 interface BomItem {
   no: number;
@@ -108,83 +109,66 @@ export default function QuotePreview({
         const safeSubject = (quoteSubject || 'Quote').replace(/[/\\:*?"<>|]/g, '_');
         const filename = `${safeSubject}_${safeDate}_v${version || '1'}.pdf`;
         
-        // Use browser's native print to PDF capability for text-selectable output
+        // Get the preview document element
         const element = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
         if (!element) {
-          console.error('Preview document not found');
+          console.error('Preview document not found - ensure preview-document testid exists');
           return;
         }
         
-        // Create a new window for printing with proper styles
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-          console.error('Could not open print window');
-          return;
-        }
+        console.log('Generating PDF with direct download...');
         
-        // Get all stylesheets from the current document
-        const styles = Array.from(document.styleSheets)
-          .map(styleSheet => {
-            try {
-              return Array.from(styleSheet.cssRules)
-                .map(rule => rule.cssText)
-                .join('\n');
-            } catch (e) {
-              // Handle cross-origin stylesheets
-              return '';
-            }
-          })
-          .join('\n');
-        
-        // Set up the print document with proper PDF-optimized styles
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${filename}</title>
-              <style>
-                ${styles}
-                @media print {
-                  body { margin: 0; padding: 0; }
-                  .page-break-before { page-break-before: always; }
-                  .no-print { display: none !important; }
-                  /* Ensure images render properly */
-                  img { max-width: 100% !important; height: auto !important; }
-                  /* Better text rendering */
-                  * { 
-                    -webkit-print-color-adjust: exact !important;
-                    color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                  }
-                  /* Prevent content from being cut off */
-                  .h-\\[297mm\\] { height: auto !important; min-height: 297mm; }
-                }
-              </style>
-            </head>
-            <body>
-              ${element.outerHTML}
-            </body>
-          </html>
-        `);
-        
-        printWindow.document.close();
-        
-        // Wait for images to load, then trigger print
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 1000);
+        // Configure html2pdf options for high quality output
+        const options = {
+          margin: [12, 12, 12, 12], // mm margins: top, right, bottom, left
+          filename: filename,
+          image: { 
+            type: 'jpeg', 
+            quality: 0.95 // High quality images
+          },
+          html2canvas: { 
+            scale: 2, // Higher resolution
+            useCORS: true,
+            letterRendering: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0,
+            width: element.scrollWidth,
+            height: element.scrollHeight
+          },
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { 
+            mode: ['avoid-all', 'css'] 
+          }
         };
         
-        console.log('PDF export initiated - use browser print dialog to save as PDF');
+        // Generate and download PDF directly
+        await html2pdf()
+          .set(options)
+          .from(element)
+          .save()
+          .catch((error: any) => {
+            console.error('PDF generation failed:', error);
+            throw error;
+          });
+        
+        console.log('PDF download completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
+        // Fallback: show user-friendly error message
+        alert('PDF export failed. Please check the console for details and try again.');
       }
     } else if (format === 'word') {
       // Word export placeholder - would require different library
       console.log('Word export not yet implemented');
+      alert('Word export is not yet implemented. Please use PDF export for now.');
     }
   };
 
