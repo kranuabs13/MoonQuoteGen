@@ -331,4 +331,107 @@
   .page-break-before {
     break-before: page;
   }
+  
+  .page-break-after {
+    break-after: page;
+  }
+}
+
+/* Print CSS for exact PDF export */
+@media print {
+  /* Remove all browser default margins and padding */
+  @page {
+    size: A4;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Ensure body takes full page */
+  html, body {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Hide all non-document elements during print */
+  body > *:not(.print-document) {
+    display: none !important;
+  }
+  
+  /* Show only the print document */
+  .print-document {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Force exact page breaks */
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  
+  /* Prevent orphan/widow lines */
+  * {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Allow page breaks inside specific containers */
+  .page-break-auto {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  
+  /* Force colors and backgrounds to print */
+  table, th, td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Ensure images print properly */
+  img {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Hide interactive elements that shouldn't print */
+  button, .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure links don't show underlines unless intended */
+  a {
+    text-decoration: none !important;
+  }
+  
+  a[href^="http"]::after {
+    content: "";
+  }
 }

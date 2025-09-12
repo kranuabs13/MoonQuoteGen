@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, FileText, Maximize2, Printer } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
@@ -61,6 +62,7 @@ export default function QuotePreview({
 }: QuotePreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -96,6 +98,33 @@ export default function QuotePreview({
       return Math.max(50, Math.min(150, newZoom));
     });
     console.log(`Zoom ${direction}: ${zoom}%`);
+  };
+
+  const handlePrintExact = () => {
+    console.log('Preparing exact PDF print...');
+    
+    // Save current quote data to localStorage for the print page
+    const quoteData = {
+      quoteSubject,
+      customerCompany,
+      customerLogo,
+      salesPersonName,
+      date,
+      version,
+      paymentTerms,
+      currency,
+      bomEnabled,
+      costsEnabled,
+      columnVisibility,
+      contactInfo,
+      bomItems,
+      costItems
+    };
+    
+    localStorage.setItem('quoteFormData', JSON.stringify(quoteData));
+    
+    // Navigate to print page which will auto-trigger print dialog
+    setLocation('/print');
   };
 
   const handleExport = async (format: 'pdf' | 'word') => {
@@ -213,13 +242,22 @@ export default function QuotePreview({
               <Maximize2 className="h-4 w-4" />
             </Button>
             <Button
+              variant="default"
+              size="sm"
+              onClick={handlePrintExact}
+              data-testid="button-print-exact"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Exact PDF
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               onClick={() => handleExport('pdf')}
               data-testid="button-export-pdf"
             >
               <Download className="h-4 w-4 mr-2" />
-              PDF
+              PDF (Simple)
             </Button>
             <Button
               variant="outline"
