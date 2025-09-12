@@ -53,20 +53,97 @@ export default function PrintQuote() {
     // Load quote data from localStorage
     try {
       const savedData = localStorage.getItem('quoteData');
+      console.log('Print page: Loading quote data from localStorage', savedData ? 'Found data' : 'No data found');
+      
       if (savedData) {
-        setQuoteData(JSON.parse(savedData));
+        const parsedData = JSON.parse(savedData);
+        console.log('Print page: Parsed quote data:', parsedData);
+        setQuoteData(parsedData);
+      } else {
+        console.warn('Print page: No quote data found in localStorage');
       }
     } catch (error) {
       console.error('Failed to load quote data for printing:', error);
     }
-
-    // Auto-trigger print dialog after a short delay to ensure rendering is complete
-    const printTimer = setTimeout(() => {
-      window.print();
-    }, 1000);
-
-    return () => clearTimeout(printTimer);
   }, []);
+
+  // Separate effect to handle printing after data is loaded
+  useEffect(() => {
+    if (!quoteData) return; // Wait until data is loaded
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDebugMode = urlParams.get('debug') === '1';
+    
+    if (isDebugMode) {
+      console.log('Print page: Debug mode enabled - NOT triggering window.print()');
+      return;
+    }
+
+    // Wait for React to finish rendering and all images to load before printing
+    const waitForReadinessAndPrint = async () => {
+      console.log('Print page: Waiting for readiness before printing...');
+      
+      try {
+        // Preload all images used in the print document
+        const imagesToPreload = [frameImage, emetLogo, techDiagram];
+        const imagePromises = imagesToPreload.map(src => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+              console.log('Print page: Image loaded:', src);
+              resolve(src);
+            };
+            img.onerror = () => {
+              console.warn('Print page: Image failed to load:', src);
+              resolve(src); // Don't block printing for failed images
+            };
+            img.src = src;
+          });
+        });
+
+        // Wait for all images to load
+        await Promise.all(imagePromises);
+        console.log('Print page: All images preloaded');
+
+        // Wait for any existing DOM images to complete loading
+        const domImages = document.querySelectorAll('img');
+        const domImagePromises = Array.from(domImages).map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve; // Don't block for failed images
+          });
+        });
+        await Promise.all(domImagePromises);
+        
+        // Wait for two animation frames to ensure painting is complete
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        console.log('Print page: Everything ready, triggering window.print()');
+        
+        // Add afterprint event to close window
+        const handleAfterPrint = () => {
+          console.log('Print page: Print dialog closed, closing window');
+          window.removeEventListener('afterprint', handleAfterPrint);
+          window.close();
+        };
+        window.addEventListener('afterprint', handleAfterPrint);
+        
+        // Trigger print
+        window.print();
+        
+      } catch (error) {
+        console.error('Print page: Error during readiness check:', error);
+        // Still try to print even if readiness check fails
+        window.print();
+      }
+    };
+
+    // Small delay to ensure the useEffect has completed and DOM is updated
+    setTimeout(waitForReadinessAndPrint, 100);
+    
+  }, [quoteData]); // Only run when quoteData changes
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -104,7 +181,7 @@ export default function PrintQuote() {
     <div className="print-document">
       {/* Page 1 - Cover Page with Border Frame */}
       <div 
-        className="print-page page-break-before"
+        className="print-page"
         style={{
           backgroundImage: `url(${frameImage})`,
           backgroundSize: 'cover',
