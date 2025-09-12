@@ -112,158 +112,66 @@ export default function QuotePreview({
         const element = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
         if (!element) {
           console.error('Preview document not found - ensure preview-document testid exists');
+          alert('Could not find preview to export. Please make sure the preview is loaded.');
           return;
         }
         
-        console.log('Generating PDF with exact preview content...');
+        console.log('Generating PDF from exact preview...');
         
-        // Get all computed styles and create a complete HTML document
-        const styles = Array.from(document.styleSheets)
-          .map(styleSheet => {
-            try {
-              return Array.from(styleSheet.cssRules)
-                .map(rule => rule.cssText)
-                .join('\n');
-            } catch (e) {
-              console.warn('Could not access stylesheet:', e);
-              return '';
-            }
-          })
-          .join('\n');
+        // Import html2pdf dynamically
+        const html2pdf = (await import('html2pdf.js')).default;
         
-        // Create complete HTML document with all styles
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Quote PDF</title>
-            <style>
-              /* Reset and base styles */
-              * { box-sizing: border-box; margin: 0; padding: 0; }
-              html, body { font-family: Inter, sans-serif; }
-              
-              /* Embedded styles from Tailwind and custom CSS */
-              ${styles}
-              
-              /* Print-specific styles for PDF */
-              @page { 
-                size: A4; 
-                margin: 0; 
-                -webkit-print-color-adjust: exact; 
-                print-color-adjust: exact; 
-              }
-              
-              body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                color-adjust: exact;
-                width: 210mm;
-                margin: 0;
-                padding: 0;
-              }
-              
-              .page-break-after { 
-                page-break-after: always; 
-                break-after: page; 
-              }
-              
-              /* Force background images and colors */
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-              }
-            </style>
-          </head>
-          <body>
-            ${element.outerHTML}
-          </body>
-          </html>
-        `;
-        
-        // Send HTML content to server for PDF conversion
-        const response = await fetch('/api/generate-exact-pdf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        // Configure PDF options for exact reproduction
+        const options = {
+          margin: 0,
+          filename: filename,
+          image: { type: 'jpeg', quality: 1.0 },
+          html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0,
+            width: element.scrollWidth,
+            height: element.scrollHeight
           },
-          body: JSON.stringify({
-            htmlContent,
-            filename,
-            options: {
-              format: 'A4',
-              margin: 0,
-              printBackground: true,
-              preferCSSPageSize: true
-            }
-          })
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { 
+            mode: ['avoid-all', 'css', 'legacy'],
+            before: '.page-break-before',
+            after: '.page-break-after'
+          }
+        };
+        
+        // Create a clone of the element to avoid modifying the original
+        const clonedElement = element.cloneNode(true) as HTMLElement;
+        
+        // Apply print-specific styles to the clone
+        clonedElement.style.width = '210mm';
+        clonedElement.style.backgroundColor = 'white';
+        clonedElement.style.fontFamily = 'Inter, sans-serif';
+        
+        // Force all elements to print with colors
+        const allElements = clonedElement.querySelectorAll('*') as NodeListOf<HTMLElement>;
+        allElements.forEach(el => {
+          el.style.webkitPrintColorAdjust = 'exact';
+          el.style.printColorAdjust = 'exact';
+          el.style.colorAdjust = 'exact';
         });
         
-        if (!response.ok) {
-          // Fallback to the old PDFKit method if exact PDF service isn't available
-          console.log('Exact PDF service not available, falling back to basic PDF...');
-          
-          const quoteData = {
-            quote: {
-              subject: quoteSubject,
-              customer: customerCompany,
-              salesPerson: salesPersonName,
-              terms: paymentTerms,
-              currency: currency
-            },
-            bomItems,
-            costItems
-          };
-          
-          const fallbackResponse = await fetch('/api/generate-pdf', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              quoteData,
-              filename
-            })
-          });
-          
-          if (!fallbackResponse.ok) {
-            throw new Error(`PDF generation failed: ${fallbackResponse.status}`);
-          }
-          
-          const blob = await fallbackResponse.blob();
-          
-          // Create download link and trigger download
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          
-          console.log('PDF download completed (fallback mode)');
-          return;
-        }
+        // Generate and download the PDF
+        await html2pdf()
+          .set(options)
+          .from(clonedElement)
+          .save();
         
-        // Get the exact PDF blob from the response
-        const blob = await response.blob();
-        
-        // Create download link and trigger download
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        console.log('Exact PDF download completed successfully');
+        console.log('PDF export completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
