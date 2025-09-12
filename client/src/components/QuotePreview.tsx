@@ -6,9 +6,6 @@ import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
 import type { ColumnVisibility, ContactInfo } from "@shared/schema";
-import html2pdf from 'html2pdf.js';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface BomItem {
   no: number;
@@ -118,142 +115,50 @@ export default function QuotePreview({
           return;
         }
         
-        console.log('Generating PDF with direct download...');
+        console.log('Generating PDF with server-side generation...');
         
-        // Wait for all images to load
-        const images = element.querySelectorAll('img');
-        const imagePromises = Array.from(images).map(img => {
-          if (img.complete) return Promise.resolve();
-          return new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            // Timeout after 10 seconds
-            setTimeout(reject, 10000);
-          });
-        });
-        
-        try {
-          await Promise.all(imagePromises);
-          console.log('All images loaded successfully');
-        } catch (error) {
-          console.warn('Some images failed to load, continuing with PDF generation');
-        }
-        
-        // Configure html2pdf options for A4 sizing and proper pagination
-        const options = {
-          margin: [10, 10, 10, 10], // 10mm margins on all sides
-          filename: filename,
-          image: { 
-            type: 'jpeg', 
-            quality: 0.98
+        // Prepare the quote data for server-side generation
+        const quoteData = {
+          quote: {
+            subject: quoteSubject,
+            customer: customerCompany,
+            salesPerson: salesPersonName,
+            terms: paymentTerms,
+            currency: currency
           },
-          html2canvas: { 
-            scale: 1.5, // Reduced scale for better fitting
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: true,
-            onrendered: function(canvas: any) {
-              console.log('Canvas rendered with dimensions:', canvas.width, 'x', canvas.height);
-            }
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait',
-            compress: true
-          },
-          pagebreak: { 
-            mode: 'avoid-all', // Avoid breaking elements
-            before: [],
-            after: [],
-            avoid: ['tr', 'th', 'td', '.quote-section']
-          }
+          bomItems,
+          costItems
         };
         
-        console.log('Starting PDF generation with element:', element);
-        console.log('Element dimensions:', element.offsetWidth, 'x', element.offsetHeight);
+        // Call the server-side PDF generation API
+        const response = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quoteData,
+            filename
+          })
+        });
         
-        // Try html2pdf first, fallback to manual method if it fails
-        try {
-          await html2pdf()
-            .set(options)
-            .from(element)
-            .save();
-        } catch (error) {
-          console.warn('html2pdf failed, trying manual method:', error);
-          
-          // Fallback: Use html2canvas + jsPDF directly for better control
-          const canvas = await html2canvas(element, {
-            scale: 1.5, // Match the scale from html2pdf
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: true,
-            width: element.scrollWidth,
-            height: element.scrollHeight,
-          });
-          
-          console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height);
-          
-          // Create PDF with proper A4 dimensions and margins
-          const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-          });
-          
-          // A4 dimensions with margins
-          const pageWidth = 210; // A4 width in mm
-          const pageHeight = 297; // A4 height in mm
-          const margin = 10; // 10mm margins
-          const contentWidth = pageWidth - (margin * 2); // 190mm
-          const contentHeight = pageHeight - (margin * 2); // 277mm
-          
-          // Calculate scaling to fit content width
-          const imgWidth = contentWidth;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          
-          // Convert canvas to image
-          const imgData = canvas.toDataURL('image/jpeg', 0.98);
-          
-          if (imgHeight <= contentHeight) {
-            // Content fits on one page
-            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
-          } else {
-            // Content needs multiple pages
-            let yPosition = 0;
-            let pageNumber = 0;
-            
-            while (yPosition < imgHeight) {
-              if (pageNumber > 0) {
-                pdf.addPage();
-              }
-              
-              // Calculate how much content to show on this page
-              const remainingHeight = imgHeight - yPosition;
-              const pageContentHeight = Math.min(contentHeight, remainingHeight);
-              
-              // Add the image portion for this page
-              pdf.addImage(
-                imgData, 
-                'JPEG', 
-                margin, 
-                margin - yPosition, // Offset the image to show the right portion
-                imgWidth, 
-                imgHeight
-              );
-              
-              yPosition += contentHeight;
-              pageNumber++;
-            }
-          }
-          
-          // Download the PDF
-          pdf.save(filename);
-          console.log('Manual PDF generation completed with', pdf.getNumberOfPages(), 'pages');
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
         }
+        
+        // Get the PDF blob from the response
+        const blob = await response.blob();
+        
+        // Create a download link and trigger the download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
         
         console.log('PDF download completed successfully');
         
