@@ -115,20 +115,34 @@ export default function QuotePreview({
           return;
         }
         
-        console.log('Generating PDF with server-side generation...');
+        console.log('Generating PDF with exact HTML content...');
         
-        // Prepare the quote data for server-side generation
-        const quoteData = {
-          quote: {
-            subject: quoteSubject,
-            customer: customerCompany,
-            salesPerson: salesPersonName,
-            terms: paymentTerms,
-            currency: currency
-          },
-          bomItems,
-          costItems
-        };
+        // Get the preview HTML content exactly as displayed
+        const previewElement = element.cloneNode(true) as HTMLElement;
+        
+        // Convert all image sources to absolute URLs and ensure they're accessible
+        const images = previewElement.querySelectorAll('img');
+        await Promise.all(Array.from(images).map(async (img) => {
+          try {
+            // Convert relative URLs to absolute URLs
+            if (img.src.startsWith('/src/assets/') || img.src.includes('assets')) {
+              // Convert Vite asset URLs to data URLs
+              const response = await fetch(img.src);
+              const blob = await response.blob();
+              const dataUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+              img.src = dataUrl;
+            }
+          } catch (error) {
+            console.warn('Failed to convert image to data URL:', img.src, error);
+          }
+        }));
+        
+        // Get the complete HTML content
+        const htmlContent = previewElement.outerHTML;
         
         // Call the server-side PDF generation API
         const response = await fetch('/api/generate-pdf', {
@@ -137,7 +151,7 @@ export default function QuotePreview({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            quoteData,
+            htmlContent,
             filename
           })
         });
