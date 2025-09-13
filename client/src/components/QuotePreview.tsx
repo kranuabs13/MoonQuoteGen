@@ -127,7 +127,7 @@ export default function QuotePreview({
 
         // Capture the page as canvas
         const canvas = await html2canvas(previewElement, {
-          scale: 1,
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
