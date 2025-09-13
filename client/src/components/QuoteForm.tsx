@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDebounce } from "../hooks/use-debounce";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 import QuoteHeader from "./QuoteHeader";
 import BomSection from "./BomSection";
 import CostSection from "./CostSection";
@@ -111,6 +114,16 @@ export default function QuoteForm() {
 
   const inputPanel = (
     <div className="space-y-6" data-testid="input-form">
+      {/* Import Supplier Quote Button */}
+      <div className="flex justify-center pb-4 border-b border-border">
+        <Link href="/import">
+          <Button variant="outline" className="w-full max-w-sm" data-testid="button-import-quote">
+            <Upload className="w-4 h-4 mr-2" />
+            Import Supplier Quote
+          </Button>
+        </Link>
+      </div>
+
       <QuoteHeader
         quoteSubject={formData.quoteSubject}
         customerCompany={formData.customerCompany}
