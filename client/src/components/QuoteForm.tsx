@@ -366,9 +366,23 @@ export default function QuoteForm() {
       }
     }
 
-    // Update BOM items if available
+    // Update BOM items if available - convert to BOM groups structure
     if (data.bomItems && data.bomItems.length > 0) {
+      // Create a new BOM group from imported items
+      const importedGroup: BomGroup = {
+        id: 'bom-1',
+        name: 'BOM 1',
+        items: data.bomItems.map((item, index) => ({
+          ...item,
+          no: index + 1  // Ensure proper numbering
+        }))
+      };
+      
+      // Update both bomGroups (new structure) and bomItems (legacy compatibility)
+      updatedData.bomGroups = [importedGroup];
       updatedData.bomItems = data.bomItems;
+      updatedData.bomEnabled = true; // Auto-enable BOM when importing BOM data
+      
       changesCount += data.bomItems.length;
     }
 

@@ -84,7 +84,7 @@ function processWorkbook(
   }
 
   // Parse BOM Items sheet if available
-  const bomSheet = findSheet(workbook, ['BOM Items', 'bom items', 'BOM', 'bom']);
+  const bomSheet = findSheet(workbook, ['BOM Items (Multi-Group)', 'BOM Items', 'bom items', 'BOM', 'bom']);
   if (bomSheet) {
     result.bomItems = parseBomItemsSheet(bomSheet, result, validateData);
   }
