@@ -180,26 +180,33 @@ function parseBomItemsSheet(
     let headerRowIndex = -1;
     const headers: string[] = [];
     
+    console.log('DEBUG: Searching for BOM headers in', data.length, 'rows');
+    
     for (let i = 0; i < Math.min(data.length, 25); i++) {
       const row = data[i];
       if (!row) continue;
       
       const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
+      console.log(`DEBUG: Row ${i}:`, row, '-> rowStr:', rowStr);
+      
       if (rowStr.includes('part number') || rowStr.includes('product description') || 
           rowStr.includes('qty') || rowStr.includes('quantity')) {
         headerRowIndex = i;
         headers.push(...row.map(cell => String(cell || '').trim()));
+        console.log('DEBUG: Found headers at row', i, ':', headers);
         break;
       }
     }
 
     if (headerRowIndex === -1) {
+      console.log('DEBUG: No headers found, first few rows:', data.slice(0, 5));
       result.errors.push('Could not find BOM headers in the sheet');
       return items;
     }
 
     // Map column indices
     const columnMap = mapBomColumns(headers);
+    console.log('DEBUG: Column mapping:', columnMap);
     
     // Parse data rows
     for (let i = headerRowIndex + 1; i < data.length; i++) {
