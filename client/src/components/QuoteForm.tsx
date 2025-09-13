@@ -366,9 +366,36 @@ export default function QuoteForm() {
       }
     }
 
-    // Update BOM items if available - convert to BOM groups structure
-    if (data.bomItems && data.bomItems.length > 0) {
-      // Create a new BOM group from imported items
+    // Update BOM items - prioritize bomGroups structure if available
+    if (data.bomGroups && data.bomGroups.length > 0) {
+      // Use the new multi-group structure from Excel template
+      updatedData.bomGroups = data.bomGroups;
+      
+      // Create legacy bomItems array for backward compatibility
+      const allBomItems = data.bomGroups.flatMap(group => group.items);
+      updatedData.bomItems = allBomItems;
+      updatedData.bomEnabled = true; // Auto-enable BOM when importing BOM data
+      
+      // Auto-enable price columns if any items have pricing data
+      const hasPricing = allBomItems.some(item => item.unitPrice !== undefined && item.unitPrice !== null);
+      if (hasPricing) {
+        updatedData.columnVisibility = {
+          ...updatedData.columnVisibility,
+          unitPrice: true,
+          totalPrice: true
+        };
+        
+        // Calculate total prices for items that have unit prices but no total price
+        allBomItems.forEach(item => {
+          if (item.unitPrice && !item.totalPrice) {
+            item.totalPrice = item.quantity * item.unitPrice;
+          }
+        });
+      }
+      
+      changesCount += allBomItems.length;
+    } else if (data.bomItems && data.bomItems.length > 0) {
+      // Fall back to legacy single-group structure
       const importedGroup: BomGroup = {
         id: 'bom-1',
         name: 'BOM 1',
@@ -382,6 +409,23 @@ export default function QuoteForm() {
       updatedData.bomGroups = [importedGroup];
       updatedData.bomItems = data.bomItems;
       updatedData.bomEnabled = true; // Auto-enable BOM when importing BOM data
+      
+      // Auto-enable price columns if any items have pricing data
+      const hasPricing = data.bomItems.some(item => item.unitPrice !== undefined && item.unitPrice !== null);
+      if (hasPricing) {
+        updatedData.columnVisibility = {
+          ...updatedData.columnVisibility,
+          unitPrice: true,
+          totalPrice: true
+        };
+        
+        // Calculate total prices for items that have unit prices but no total price
+        data.bomItems.forEach(item => {
+          if (item.unitPrice && !item.totalPrice) {
+            item.totalPrice = item.quantity * item.unitPrice;
+          }
+        });
+      }
       
       changesCount += data.bomItems.length;
     }

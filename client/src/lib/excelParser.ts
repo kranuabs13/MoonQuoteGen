@@ -11,6 +11,18 @@ export interface ParsedExcelData {
     unitPrice?: number;
     totalPrice?: number;
   }>;
+  bomGroups?: Array<{
+    id: string;
+    name: string;
+    items: Array<{
+      no: number;
+      partNumber: string;
+      productDescription: string;
+      quantity: number;
+      unitPrice?: number;
+      totalPrice?: number;
+    }>;
+  }>;
   costItems?: Array<{
     productDescription: string;
     quantity: number;
@@ -168,76 +180,144 @@ function parseBomItemsSheet(
   validateData: boolean
 ): Array<NonNullable<ParsedExcelData['bomItems']>[number]> {
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  const items: Array<any> = [];
+  const allItems: Array<any> = [];
+  const bomGroups: Array<NonNullable<ParsedExcelData['bomGroups']>[number]> = [];
 
   if (data.length < 2) {
     result.warnings.push('BOM sheet appears to be empty or has no data rows');
-    return items;
+    return allItems;
   }
 
   try {
-    // Find header row (look for common BOM headers)
-    let headerRowIndex = -1;
-    const headers: string[] = [];
+    console.log('DEBUG: Searching for BOM groups in', data.length, 'rows');
     
-    console.log('DEBUG: Searching for BOM headers in', data.length, 'rows');
+    // Find all group sections
+    const groupSections: Array<{ groupLabel: string; groupName: string; startRow: number; headerRow: number; headers: string[] }> = [];
     
-    for (let i = 0; i < Math.min(data.length, 25); i++) {
+    for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row) continue;
       
       const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
-      console.log(`DEBUG: Row ${i}:`, row, '-> rowStr:', rowStr);
       
-      // Check if this row has actual column headers (separate cells, not instruction text)
-      const hasPartNumber = row.some(cell => String(cell || '').toLowerCase().trim() === 'part number');
-      const hasProductDescription = row.some(cell => String(cell || '').toLowerCase().includes('product description') && String(cell || '').toLowerCase().trim().split(' ').length <= 3);
-      const hasQty = row.some(cell => String(cell || '').toLowerCase().trim() === 'qty' || String(cell || '').toLowerCase().trim() === 'quantity');
-      
-      if ((hasPartNumber || hasProductDescription) && hasQty) {
-        headerRowIndex = i;
-        headers.push(...row.map(cell => String(cell || '').trim()));
-        console.log('DEBUG: Found headers at row', i, ':', headers);
-        break;
+      // Look for group labels like "📦 GROUP 1: Network Infrastructure"
+      if (rowStr.includes('📦') && rowStr.includes('group')) {
+        const groupLabel = String(row[0] || '').trim();
+        const groupMatch = groupLabel.match(/📦\s*GROUP\s*(\d+):\s*(.+)/i);
+        
+        if (groupMatch) {
+          const groupNumber = groupMatch[1];
+          const groupName = groupMatch[2];
+          console.log(`DEBUG: Found group label at row ${i}: "${groupLabel}"`);
+          
+          // Look for the next header row after this group label
+          for (let j = i + 1; j < Math.min(i + 5, data.length); j++) {
+            const headerRow = data[j];
+            if (!headerRow) continue;
+            
+            const hasPartNumber = headerRow.some(cell => String(cell || '').toLowerCase().trim() === 'part number');
+            const hasProductDescription = headerRow.some(cell => String(cell || '').toLowerCase().includes('product description') && String(cell || '').toLowerCase().trim().split(' ').length <= 3);
+            const hasQty = headerRow.some(cell => String(cell || '').toLowerCase().trim() === 'qty' || String(cell || '').toLowerCase().trim() === 'quantity');
+            
+            if ((hasPartNumber || hasProductDescription) && hasQty) {
+              const headers = headerRow.map(cell => String(cell || '').trim());
+              groupSections.push({
+                groupLabel: `BOM ${groupNumber}`,
+                groupName: groupName,
+                startRow: i,
+                headerRow: j,
+                headers
+              });
+              console.log(`DEBUG: Found headers for group ${groupNumber} at row ${j}:`, headers);
+              break;
+            }
+          }
+        }
       }
     }
 
-    if (headerRowIndex === -1) {
-      console.log('DEBUG: No headers found, first few rows:', data.slice(0, 5));
-      result.errors.push('Could not find BOM headers in the sheet');
-      return items;
+    // If no group sections found, fall back to parsing the entire sheet as one group
+    if (groupSections.length === 0) {
+      console.log('DEBUG: No group sections found, parsing as single group');
+      
+      // Find any header row in the sheet
+      for (let i = 0; i < Math.min(data.length, 25); i++) {
+        const row = data[i];
+        if (!row) continue;
+        
+        const hasPartNumber = row.some(cell => String(cell || '').toLowerCase().trim() === 'part number');
+        const hasProductDescription = row.some(cell => String(cell || '').toLowerCase().includes('product description') && String(cell || '').toLowerCase().trim().split(' ').length <= 3);
+        const hasQty = row.some(cell => String(cell || '').toLowerCase().trim() === 'qty' || String(cell || '').toLowerCase().trim() === 'quantity');
+        
+        if ((hasPartNumber || hasProductDescription) && hasQty) {
+          const headers = row.map(cell => String(cell || '').trim());
+          groupSections.push({
+            groupLabel: 'BOM 1',
+            groupName: 'Imported Items',
+            startRow: -1,
+            headerRow: i,
+            headers
+          });
+          console.log(`DEBUG: Found single group headers at row ${i}:`, headers);
+          break;
+        }
+      }
     }
 
-    // Map column indices
-    const columnMap = mapBomColumns(headers);
-    console.log('DEBUG: Column mapping:', columnMap);
+    // Process each group section
+    for (let groupIndex = 0; groupIndex < groupSections.length; groupIndex++) {
+      const group = groupSections[groupIndex];
+      const nextGroupStartRow = groupIndex + 1 < groupSections.length ? groupSections[groupIndex + 1].startRow : data.length;
+      
+      console.log(`DEBUG: Processing group "${group.groupLabel}" from row ${group.headerRow + 1} to ${nextGroupStartRow - 1}`);
+      
+      const columnMap = mapBomColumns(group.headers);
+      const groupItems: Array<any> = [];
+      
+      // Parse items for this group
+      for (let i = group.headerRow + 1; i < nextGroupStartRow; i++) {
+        const row = data[i];
+        if (!row || row.every(cell => !cell)) continue; // Skip empty rows
+        
+        // Skip non-data rows (repeated headers, group labels, etc.)
+        if (isNonDataRow(row, group.headers)) {
+          result.warnings.push(`Row ${i + 1}: Skipped non-data row`);
+          continue;
+        }
+
+        const item = parseBomRow(row, columnMap, i + 1, result, validateData);
+        if (item) {
+          // Set proper item numbering within the group
+          item.no = groupItems.length + 1;
+          groupItems.push(item);
+          allItems.push(item);
+        }
+      }
+      
+      if (groupItems.length > 0) {
+        bomGroups.push({
+          id: `bom-${groupIndex + 1}`,
+          name: group.groupLabel,
+          items: groupItems
+        });
+        console.log(`DEBUG: Created group "${group.groupLabel}" with ${groupItems.length} items`);
+      }
+    }
+
+    // Store the bomGroups in the result
+    result.bomGroups = bomGroups;
     
-    // Parse data rows
-    for (let i = headerRowIndex + 1; i < data.length; i++) {
-      const row = data[i];
-      if (!row || row.every(cell => !cell)) continue; // Skip empty rows
-      
-      // Skip non-data rows (group labels, repeated headers, etc.)
-      if (isNonDataRow(row, headers)) {
-        result.warnings.push(`Row ${i + 1}: Skipped non-data row`);
-        continue;
-      }
-
-      const item = parseBomRow(row, columnMap, i + 1, result, validateData);
-      if (item) {
-        items.push(item);
-      }
-    }
-
-    if (items.length === 0) {
+    if (allItems.length === 0) {
       result.warnings.push('No valid BOM items found in the sheet');
+    } else {
+      console.log(`DEBUG: Total ${allItems.length} items across ${bomGroups.length} groups`);
     }
 
   } catch (error) {
     result.errors.push(`Error parsing BOM items: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
-  return items;
+  return allItems;
 }
 
 function parseCostItemsSheet(
