@@ -2,6 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Maximize2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
@@ -105,53 +107,64 @@ export default function QuotePreview({
   const handlePdfDownload = async () => {
     setIsGeneratingPdf(true);
     try {
-      const quoteData = {
-        quote: {
-          subject: quoteSubject,
-          customer: customerCompany,
-          salesPerson: salesPersonName,
-          terms: paymentTerms,
-          currency: currency
-        },
-        bomItems,
-        costItems,
-        columnVisibility,
-        bomEnabled,
-        costsEnabled,
-        date,
-        version,
-        contact: contactInfo,
-        customerLogo
-      };
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const originalPage = currentPage;
+      let isFirstPage = true;
 
-      const response = await fetch('/api/download-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ quoteData })
-      });
+      // Capture each page
+      for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        // Navigate to the page
+        setCurrentPage(pageIndex + 1);
+        
+        // Wait a moment for the page to render
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get the preview document element
+        const previewElement = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
+        if (!previewElement) {
+          throw new Error('Preview element not found');
+        }
 
-      if (!response.ok) {
-        throw new Error(`Failed to generate PDF: ${response.status}`);
+        // Capture the page as canvas
+        const canvas = await html2canvas(previewElement, {
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: previewElement.scrollWidth,
+          height: previewElement.scrollHeight
+        });
+
+        // Convert canvas to image data
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Calculate dimensions to fit A4 page
+        const imgWidth = 210; // A4 width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Add new page if not the first one
+        if (!isFirstPage) {
+          pdf.addPage();
+        }
+        isFirstPage = false;
+        
+        // Add image to PDF
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       }
 
-      // Get the PDF as a blob
-      const blob = await response.blob();
+      // Restore original page
+      setCurrentPage(originalPage);
       
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `quote-${quoteSubject || 'untitled'}-${date || new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      // Download the PDF
+      const filename = `quote-${quoteSubject || 'untitled'}-${date || new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(filename);
       
     } catch (error) {
       console.error('PDF download failed:', error);
       alert('Failed to generate PDF. Please try again.');
+      
+      // Restore original page in case of error
+      setCurrentPage(currentPage);
     } finally {
       setIsGeneratingPdf(false);
     }
