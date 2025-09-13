@@ -8,9 +8,15 @@ import MainLayout from "./MainLayout";
 import { downloadExcelTemplate, downloadBomOnlyTemplate } from "../lib/excelTemplate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Download, FileSpreadsheet, Save, FolderOpen, FileText, Plus, Trash2 } from "lucide-react";
 import ExcelUpload from "./ExcelUpload";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import type { QuoteFormData, ColumnVisibility, ContactInfo, BomGroup, TemplateSettings } from "@shared/schema";
 import type { ParsedExcelData } from "../lib/excelParser";
 
@@ -87,14 +93,118 @@ const MOCK_INITIAL_DATA: QuoteFormData = {
 export default function QuoteForm() {
   const [formData, setFormData] = useState<QuoteFormData>(MOCK_INITIAL_DATA);
   const [customerLogoUrl, setCustomerLogoUrl] = useState<string>("");
+  const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
+  const [quoteName, setQuoteName] = useState<string>("");
+  const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
+  const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Debounce form data for performance optimization (200ms as specified)
   const debouncedFormData = useDebounce(formData, 200);
 
+  // API queries and mutations for quote management
+  const { data: quotes = [], isLoading: isLoadingQuotes } = useQuery({
+    queryKey: ['/api/quote-forms'],
+    enabled: isOpenDialogOpen, // Only fetch when dialog is open for performance
+  });
+
+  const saveQuoteMutation = useMutation({
+    mutationFn: (quoteData: QuoteFormData) => {
+      const body = {
+        ...quoteData,
+        lastModified: new Date().toISOString(),
+      };
+      return currentQuoteId
+        ? apiRequest(`/api/quote-forms/${currentQuoteId}`, { method: 'PUT', body })
+        : apiRequest('/api/quote-forms', { method: 'POST', body });
+    },
+    onSuccess: (savedQuote) => {
+      if (!currentQuoteId) {
+        setCurrentQuoteId(savedQuote.id);
+        setQuoteName(savedQuote.quoteSubject || 'Untitled Quote');
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/quote-forms'] });
+      toast({
+        title: "Quote saved successfully!",
+        description: `Quote "${savedQuote.quoteSubject || 'Untitled'}" has been saved.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to save quote",
+        description: error.message || "An error occurred while saving the quote.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteQuoteMutation = useMutation({
+    mutationFn: (quoteId: string) => apiRequest(`/api/quote-forms/${quoteId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quote-forms'] });
+      toast({
+        title: "Quote deleted",
+        description: "The quote has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete quote",
+        description: error.message || "An error occurred while deleting the quote.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Quote management handlers
+  const handleSaveQuote = () => {
+    saveQuoteMutation.mutate(formData);
+  };
+
+  const handleSaveAsQuote = (newName: string) => {
+    const quoteToSave = {
+      ...formData,
+      quoteSubject: newName || formData.quoteSubject,
+    };
+    // Reset current quote ID to force a new quote creation
+    const originalId = currentQuoteId;
+    setCurrentQuoteId(null);
+    saveQuoteMutation.mutate(quoteToSave);
+    setIsSaveAsDialogOpen(false);
+    setQuoteName(newName || formData.quoteSubject);
+  };
+
+  const handleOpenQuote = (quote: any) => {
+    const migratedData = migrateLegacyBomData(quote);
+    setFormData(migratedData);
+    setCurrentQuoteId(quote.id);
+    setQuoteName(quote.quoteSubject || 'Untitled Quote');
+    setIsOpenDialogOpen(false);
+    toast({
+      title: "Quote loaded",
+      description: `Opened quote "${quote.quoteSubject || 'Untitled'}"`,
+    });
+  };
+
+  const handleNewQuote = () => {
+    setFormData(MOCK_INITIAL_DATA);
+    setCurrentQuoteId(null);
+    setQuoteName("");
+    setCustomerLogoUrl("");
+    toast({
+      title: "New quote created",
+      description: "Started with a blank quote form.",
+    });
+  };
+
+  const handleDeleteQuote = (quoteId: string) => {
+    deleteQuoteMutation.mutate(quoteId);
+  };
+
   useEffect(() => {
-    // Load saved data from localStorage on component mount
-    // TODO: Remove mock functionality - replace with API call
+    // Load saved data from localStorage on component mount for backwards compatibility
+    // This will be migrated to proper quote loading in the future
     const savedData = localStorage.getItem('moonquote-draft');
     if (savedData) {
       try {
@@ -226,6 +336,63 @@ export default function QuoteForm() {
 
   const inputPanel = (
     <div className="space-y-6" data-testid="input-form">
+      {/* Quote Management Section */}
+      <Card data-testid="card-quote-management">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Quote Management
+            </div>
+            {currentQuoteId && (
+              <Badge variant="outline" data-testid="badge-current-quote">
+                {quoteName || formData.quoteSubject || 'Untitled Quote'}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleSaveQuote}
+              disabled={saveQuoteMutation.isPending}
+              data-testid="button-save-quote"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {currentQuoteId ? 'Save' : 'Save Quote'}
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveAsDialogOpen(true)}
+              disabled={saveQuoteMutation.isPending}
+              data-testid="button-save-as-quote"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save As...
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setIsOpenDialogOpen(true)}
+              data-testid="button-open-quote"
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Open Quote
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={handleNewQuote}
+              data-testid="button-new-quote"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Quote
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <QuoteHeader
         quoteSubject={formData.quoteSubject}
         customerCompany={formData.customerCompany}
@@ -377,10 +544,141 @@ export default function QuoteForm() {
   );
 
   return (
-    <MainLayout
-      inputPanel={inputPanel}
-      previewPanel={previewPanel}
-      onSave={handleSave}
-    />
+    <>
+      <MainLayout
+        inputPanel={inputPanel}
+        previewPanel={previewPanel}
+        onSave={handleSave}
+      />
+      
+      {/* Save As Dialog */}
+      <Dialog open={isSaveAsDialogOpen} onOpenChange={setIsSaveAsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Quote As</DialogTitle>
+            <DialogDescription>
+              Save this quote with a new name to create a copy.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quote-name" className="text-right">
+                Quote Name
+              </Label>
+              <Input
+                id="quote-name"
+                placeholder="Enter quote name..."
+                defaultValue={formData.quoteSubject}
+                className="col-span-3"
+                data-testid="input-quote-name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const input = e.target as HTMLInputElement;
+                    handleSaveAsQuote(input.value);
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveAsDialogOpen(false)}
+              data-testid="button-cancel-save-as"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const input = document.getElementById('quote-name') as HTMLInputElement;
+                handleSaveAsQuote(input?.value || '');
+              }}
+              disabled={saveQuoteMutation.isPending}
+              data-testid="button-confirm-save-as"
+            >
+              {saveQuoteMutation.isPending ? 'Saving...' : 'Save As'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Open Quote Dialog */}
+      <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Open Quote</DialogTitle>
+            <DialogDescription>
+              Select a quote to open and edit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
+            {isLoadingQuotes ? (
+              <div className="text-center py-8">
+                <p>Loading quotes...</p>
+              </div>
+            ) : quotes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No saved quotes found.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Start creating quotes and they will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {quotes.map((quote: any) => (
+                  <div
+                    key={quote.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
+                    data-testid={`quote-item-${quote.id}`}
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium">
+                        {quote.quoteSubject || 'Untitled Quote'}
+                      </h4>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span>Customer: {quote.customerCompany || 'N/A'}</span>
+                        <span>Version: {quote.version || '1'}</span>
+                        <span>
+                          Modified: {new Date(quote.lastModified).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenQuote(quote)}
+                        data-testid={`button-open-quote-${quote.id}`}
+                      >
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Open
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteQuote(quote.id)}
+                        disabled={deleteQuoteMutation.isPending}
+                        data-testid={`button-delete-quote-${quote.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsOpenDialogOpen(false)}
+              data-testid="button-close-open-dialog"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
