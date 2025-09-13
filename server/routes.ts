@@ -6,8 +6,6 @@ import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
-import puppeteer from 'puppeteer';
-import { generateQuoteHTML } from './html/quoteTemplate';
 
 // Schema for saving quotes with BOM and cost items
 const saveQuoteSchema = z.object({
@@ -119,90 +117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF Generation route using Puppeteer
-  app.post("/api/generate-pdf", async (req, res) => {
-    try {
-      const { quoteData, filename } = req.body;
-      
-      if (!quoteData) {
-        return res.status(400).json({ error: 'Quote data is required' });
-      }
-      
-      const suggestedFilename = filename || `quote-${quoteData.quote?.subject || 'document'}.pdf`;
-      console.log('Generating PDF with Puppeteer for:', suggestedFilename);
-      
-      // Build base URL for fully-qualified asset URLs
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      
-      // Generate HTML from template with base URL
-      const html = generateQuoteHTML(quoteData, baseUrl);
-      
-      // Launch Puppeteer
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process'
-        ]
-      });
-      
-      const page = await browser.newPage();
-      
-      try {
-        // Set content with HTML
-        await page.setContent(html, { 
-          waitUntil: 'networkidle0',
-          timeout: 30000
-        });
-        
-        // Wait for fonts to load
-        await page.evaluate(async () => {
-          if (document.fonts && document.fonts.ready) {
-            await document.fonts.ready;
-          }
-        });
-        
-        // Wait a bit more to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate PDF with zero margins to match edge-to-edge frame layout
-        const pdfBuffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          margin: {
-            top: '0mm',
-            right: '0mm', 
-            bottom: '0mm',
-            left: '0mm'
-          },
-          preferCSSPageSize: true
-        });
-        
-        console.log('PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
-        
-        // Set headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${suggestedFilename}"`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        
-        // Send the PDF buffer
-        res.send(pdfBuffer);
-        
-      } finally {
-        await browser.close();
-      }
-      
-    } catch (error: unknown) {
-      console.error('Error generating PDF:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: 'Failed to generate PDF: ' + errorMessage });
-    }
-  });
 
   const httpServer = createServer(app);
 

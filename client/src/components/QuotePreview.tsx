@@ -102,62 +102,7 @@ export default function QuotePreview({
     console.log(`Exporting as ${format.toUpperCase()}`);
     
     if (format === 'pdf') {
-      try {
-        // Build quote data for server-side PDF generation
-        const quoteData = {
-          quote: {
-            subject: quoteSubject,
-            customer: customerCompany,
-            salesPerson: salesPersonName,
-            terms: paymentTerms,
-            currency: currency
-          },
-          bomItems,
-          costItems,
-          columnVisibility,
-          bomEnabled,
-          costsEnabled,
-          date,
-          version,
-          contact: contactInfo
-        };
-        
-        const suggestedName = `quote-${quoteSubject || 'document'}.pdf`.replace(/[^a-z0-9.-]/gi, '_');
-        console.log('Starting PDF download via server...');
-        
-        // POST to server-side PDF generation endpoint
-        const response = await fetch('/api/generate-pdf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            quoteData, 
-            filename: suggestedName 
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
-        }
-        
-        // Stream the response blob to a downloaded file
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = suggestedName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        
-        console.log('PDF download completed successfully');
-        
-      } catch (error) {
-        console.error('PDF export failed:', error);
-        console.log('Export failed. Please try again.');
-      }
+      console.log('PDF export functionality is being rebuilt - coming soon!');
     } else if (format === 'word') {
       console.log('Word export not yet implemented');
       console.log('Word export feature is on the roadmap. Please use PDF export for now.');
