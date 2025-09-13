@@ -242,6 +242,27 @@ export default function PrintPage() {
 
   return (
     <div className="print-document">
+      {/* Debug information for diagnosing PDF export issues */}
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        right: 0, 
+        background: 'yellow', 
+        padding: '10px', 
+        zIndex: 9999,
+        fontSize: '12px',
+        maxWidth: '300px'
+      }}>
+        <div><strong>DEBUG INFO:</strong></div>
+        <div>Ready: {isReady ? 'YES' : 'NO'}</div>
+        <div>Subject: {quoteData.quoteSubject || 'MISSING'}</div>
+        <div>Company: {quoteData.customerCompany || 'MISSING'}</div>
+        <div>Sales: {quoteData.salesPersonName || 'MISSING'}</div>
+        <div>BOM Items: {quoteData.bomItems?.length || 0}</div>
+        <div>CSS Class: print-document</div>
+        <div>JobId: {new URLSearchParams(window.location.search).get('jobId') || 'NONE'}</div>
+      </div>
+
       <QuotePreview
         quoteSubject={quoteData.quoteSubject}
         customerCompany={quoteData.customerCompany}
