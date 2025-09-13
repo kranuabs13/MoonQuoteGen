@@ -103,7 +103,7 @@ export default function QuotePreview({
     
     if (format === 'pdf') {
       try {
-        // Save current quote data to localStorage so the print page can access it
+        // Build quote data for server-side PDF generation
         const quoteData = {
           quote: {
             subject: quoteSubject,
@@ -122,19 +122,37 @@ export default function QuotePreview({
           contact: contactInfo
         };
         
-        localStorage.setItem('quoteData', JSON.stringify(quoteData));
-        console.log('Quote data saved for printing');
+        const suggestedName = `quote-${quoteSubject || 'document'}.pdf`.replace(/[^a-z0-9.-]/gi, '_');
+        console.log('Starting PDF download via server...');
         
-        // Open print page in new window and trigger native print dialog
-        const printWindow = window.open('/print', '_blank');
+        // POST to server-side PDF generation endpoint
+        const response = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            quoteData, 
+            filename: suggestedName 
+          })
+        });
         
-        if (!printWindow) {
-          console.error('Print window was blocked by popup blocker');
-          console.log('Please allow popups and try again, or right-click the Export to PDF button and select "Open in new tab"');
-          return;
+        if (!response.ok) {
+          throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
         }
         
-        console.log('Print page opened - native PDF generation will start automatically');
+        // Stream the response blob to a downloaded file
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = suggestedName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        
+        console.log('PDF download completed successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);
