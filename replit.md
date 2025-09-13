@@ -45,15 +45,6 @@ Preferred communication style: Simple, everyday language.
 - **Layout System**: MainLayout with responsive breakpoints and theme switching
 - **UI Components**: Comprehensive shadcn/ui component library with Radix UI primitives
 
-### PDF Export System
-- **Architecture**: Client-side PDF generation using browser's native print functionality
-- **Export Flow**: Form data → Export job creation → Print page redirect → Auto-print trigger
-- **Perfect Fidelity**: PDF output exactly matches live preview using shared React components
-- **Implementation**: 
-  - Export jobs stored temporarily in MemStorage with UUID identifiers
-  - Print page fetches export job data via `/api/export/job/:jobId` endpoint
-  - Auto-print functionality triggers `window.print()` and manages tab lifecycle
-  - Relative URL redirects prevent mixed-content issues in proxy environments
 
 ## External Dependencies
 
