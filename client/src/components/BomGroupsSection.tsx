@@ -483,13 +483,13 @@ export default function BomGroupsSection({
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  {columnVisibility.no && <TableHead>NO</TableHead>}
-                                  {columnVisibility.partNumber && <TableHead>Part Number</TableHead>}
-                                  {columnVisibility.productDescription && <TableHead>Product Description</TableHead>}
-                                  {columnVisibility.qty && <TableHead>QTY</TableHead>}
-                                  {columnVisibility.unitPrice && <TableHead>Unit Price</TableHead>}
-                                  {columnVisibility.totalPrice && <TableHead>Total Price</TableHead>}
-                                  <TableHead className="w-16">Actions</TableHead>
+                                  {columnVisibility.no && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>NO</TableHead>}
+                                  {columnVisibility.partNumber && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>Part Number</TableHead>}
+                                  {columnVisibility.productDescription && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>Product Description</TableHead>}
+                                  {columnVisibility.qty && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>QTY</TableHead>}
+                                  {columnVisibility.unitPrice && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>Unit Price</TableHead>}
+                                  {columnVisibility.totalPrice && <TableHead className="text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</TableHead>}
+                                  <TableHead className="w-16 text-white" style={{backgroundColor: '#4A90E2'}}>Actions</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody onPaste={(e) => handleExcelPaste(e, group.id)} data-testid={`table-bom-items-${group.id}`}>
