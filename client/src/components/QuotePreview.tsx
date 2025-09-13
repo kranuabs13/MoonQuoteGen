@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Download, FileText, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { useState } from "react";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
@@ -100,78 +100,6 @@ export default function QuotePreview({
     console.log(`Zoom ${direction}: ${zoom}%`);
   };
 
-  const handleExport = async (format: 'pdf' | 'word') => {
-    console.log(`Exporting as ${format.toUpperCase()}`);
-    
-    if (format === 'pdf') {
-      try {
-        // Build quote data for new PDF export system
-        const quoteData = {
-          quote: {
-            subject: quoteSubject,
-            customer: customerCompany,
-            salesPerson: salesPersonName,
-            terms: paymentTerms,
-            currency: currency
-          },
-          bomItems,
-          costItems,
-          columnVisibility,
-          bomEnabled,
-          costsEnabled,
-          date,
-          version,
-          contact: contactInfo,
-          // Legacy fields for compatibility
-          quoteSubject,
-          customerCompany,
-          salesPersonName,
-          paymentTerms,
-          contactInfo
-        };
-        
-        console.log('Creating export job...');
-        
-        // Step 1: Create export job
-        const jobResponse = await fetch('/api/export/start', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ quoteData })
-        });
-        
-        if (!jobResponse.ok) {
-          throw new Error(`Failed to create export job: ${jobResponse.status} ${jobResponse.statusText}`);
-        }
-        
-        const { jobId } = await jobResponse.json();
-        console.log('Export job created:', jobId);
-        
-        // Step 2: Open print page with auto-print
-        console.log('Opening print page...');
-        const pdfUrl = `/api/export/pdf/${jobId}`;
-        
-        // Open PDF URL in new tab (server will redirect to print page with auto-print)
-        const printWindow = window.open(pdfUrl, '_blank');
-        
-        if (printWindow) {
-          console.log('Print page opened in new tab');
-        } else {
-          console.warn('Popup blocked. Please allow popups to use PDF export.');
-        }
-        
-        console.log('PDF export initiated successfully');
-        
-      } catch (error) {
-        console.error('PDF export failed:', error);
-        console.log('Export failed. Please try again.');
-      }
-    } else if (format === 'word') {
-      console.log('Word export not yet implemented');
-      console.log('Word export feature is on the roadmap. Please use PDF export for now.');
-    }
-  };
 
   return (
     <Card className={`h-full ${isFullscreen ? 'fixed inset-0 z-50' : ''}`} data-testid="card-quote-preview">
@@ -211,24 +139,6 @@ export default function QuotePreview({
               data-testid="button-fullscreen"
             >
               <Maximize2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => handleExport('pdf')}
-              data-testid="button-export-pdf"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export to PDF
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport('word')}
-              data-testid="button-export-word"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Word
             </Button>
           </div>
         </div>
