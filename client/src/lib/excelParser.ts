@@ -189,8 +189,6 @@ function parseBomItemsSheet(
   }
 
   try {
-    console.log('DEBUG: Searching for BOM groups in', data.length, 'rows');
-    
     // Find all group sections
     const groupSections: Array<{ groupLabel: string; groupName: string; startRow: number; headerRow: number; headers: string[] }> = [];
     
@@ -208,7 +206,6 @@ function parseBomItemsSheet(
         if (groupMatch) {
           const groupNumber = groupMatch[1];
           const groupName = groupMatch[2];
-          console.log(`DEBUG: Found group label at row ${i}: "${groupLabel}"`);
           
           // Look for the next header row after this group label
           for (let j = i + 1; j < Math.min(i + 5, data.length); j++) {
@@ -228,7 +225,6 @@ function parseBomItemsSheet(
                 headerRow: j,
                 headers
               });
-              console.log(`DEBUG: Found headers for group ${groupNumber} at row ${j}:`, headers);
               break;
             }
           }
@@ -238,8 +234,6 @@ function parseBomItemsSheet(
 
     // If no group sections found, fall back to parsing the entire sheet as one group
     if (groupSections.length === 0) {
-      console.log('DEBUG: No group sections found, parsing as single group');
-      
       // Find any header row in the sheet
       for (let i = 0; i < Math.min(data.length, 25); i++) {
         const row = data[i];
@@ -258,7 +252,6 @@ function parseBomItemsSheet(
             headerRow: i,
             headers
           });
-          console.log(`DEBUG: Found single group headers at row ${i}:`, headers);
           break;
         }
       }
@@ -268,8 +261,6 @@ function parseBomItemsSheet(
     for (let groupIndex = 0; groupIndex < groupSections.length; groupIndex++) {
       const group = groupSections[groupIndex];
       const nextGroupStartRow = groupIndex + 1 < groupSections.length ? groupSections[groupIndex + 1].startRow : data.length;
-      
-      console.log(`DEBUG: Processing group "${group.groupLabel}" from row ${group.headerRow + 1} to ${nextGroupStartRow - 1}`);
       
       const columnMap = mapBomColumns(group.headers);
       const groupItems: Array<any> = [];
@@ -300,7 +291,6 @@ function parseBomItemsSheet(
           name: group.groupLabel,
           items: groupItems
         });
-        console.log(`DEBUG: Created group "${group.groupLabel}" with ${groupItems.length} items`);
       }
     }
 
@@ -309,8 +299,6 @@ function parseBomItemsSheet(
     
     if (allItems.length === 0) {
       result.warnings.push('No valid BOM items found in the sheet');
-    } else {
-      console.log(`DEBUG: Total ${allItems.length} items across ${bomGroups.length} groups`);
     }
 
   } catch (error) {
@@ -499,16 +487,6 @@ function parseBomRow(
       totalPrice: columnMap.totalPrice !== undefined ? parseNumber(row[columnMap.totalPrice]) : undefined,
     };
 
-    // Debug logging for product description issues
-    if (rowNumber <= 5) { // Only log first few rows to avoid spam
-      console.log(`DEBUG Row ${rowNumber}:`, {
-        rawRow: row,
-        columnMap,
-        productDescriptionIndex: columnMap.productDescription,
-        productDescriptionValue: row[columnMap.productDescription],
-        finalItem: item
-      });
-    }
 
     // Validation
     if (validateData) {
