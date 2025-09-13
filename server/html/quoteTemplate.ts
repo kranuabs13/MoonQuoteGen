@@ -36,12 +36,22 @@ interface QuoteData {
   contact: ContactInfo;
 }
 
-// Asset paths - these will be served from the server
-const emetLogo = '/assets/image_1757577759606.png';
-const techDiagram = '/assets/image_1757577458643.png';  
-const frameImage = '/assets/image_1757577550193.png';
+export function generateQuoteHTML(quoteData: QuoteData, baseUrl?: string): string {
+  // Asset paths - use fully-qualified URLs if baseUrl provided
+  const assetBase = baseUrl || '';
+  const emetLogo = `${assetBase}/assets/image_1757577759606.png`;
+  const techDiagram = `${assetBase}/assets/image_1757577458643.png`;
+  const frameImage = `${assetBase}/assets/image_1757577550193.png`;
 
-export function generateQuoteHTML(quoteData: QuoteData): string {
+  // HTML escaping for security
+  const escapeHtml = (unsafe: string): string => {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
   const formatCurrency = (amount: number, currency: string) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
     const currencyConfig = {
@@ -77,6 +87,11 @@ export function generateQuoteHTML(quoteData: QuoteData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quote - ${quoteData.quote.subject}</title>
   <style>
+    @page {
+      margin: 0;
+      size: A4;
+    }
+    
     * {
       margin: 0;
       padding: 0;
@@ -84,6 +99,9 @@ export function generateQuoteHTML(quoteData: QuoteData): string {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    
+    /* Load Inter font for consistent typography */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

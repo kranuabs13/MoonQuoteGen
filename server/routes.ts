@@ -1,6 +1,8 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import path from "path";
+import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
@@ -14,9 +16,11 @@ const saveQuoteSchema = z.object({
   costItems: z.array(insertCostItemSchema),
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Serve static assets from public directory
-  app.use('/assets', require('express').static(path.join(__dirname, '../public/assets')));
+  app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
   
   // Quote routes
   
@@ -127,8 +131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const suggestedFilename = filename || `quote-${quoteData.quote?.subject || 'document'}.pdf`;
       console.log('Generating PDF with Puppeteer for:', suggestedFilename);
       
-      // Generate HTML from template
-      const html = generateQuoteHTML(quoteData);
+      // Build base URL for fully-qualified asset URLs
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      
+      // Generate HTML from template with base URL
+      const html = generateQuoteHTML(quoteData, baseUrl);
       
       // Launch Puppeteer
       const browser = await puppeteer.launch({
@@ -161,17 +168,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Wait a bit more to ensure everything is rendered
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Generate PDF
+        // Generate PDF with zero margins to match edge-to-edge frame layout
         const pdfBuffer = await page.pdf({
           format: 'A4',
           printBackground: true,
           margin: {
-            top: '12mm',
-            right: '12mm', 
-            bottom: '12mm',
-            left: '12mm'
+            top: '0mm',
+            right: '0mm', 
+            bottom: '0mm',
+            left: '0mm'
           },
           preferCSSPageSize: true
         });
