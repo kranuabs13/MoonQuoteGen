@@ -129,9 +129,9 @@ export default function QuotePreview({
 
   const handlePdfDownload = async () => {
     setIsGeneratingPdf(true);
+    const originalPage = currentPage; // Move this outside try block for proper scope
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const originalPage = currentPage;
       let isFirstPage = true;
 
       // Capture each page
@@ -139,8 +139,8 @@ export default function QuotePreview({
         // Navigate to the page
         setCurrentPage(pageIndex + 1);
         
-        // Wait a moment for the page to render
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait longer for the page to render completely
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         // Get the preview document element
         const previewElement = document.querySelector('[data-testid="preview-document"]') as HTMLElement;
@@ -148,22 +148,26 @@ export default function QuotePreview({
           throw new Error('Preview element not found');
         }
 
-        // Capture the page as canvas
+        // Capture the page as canvas with optimized settings
         const canvas = await html2canvas(previewElement, {
-          scale: 2,
+          scale: 1, // Reduced from 2 to prevent massive file sizes
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
-          width: previewElement.scrollWidth,
-          height: previewElement.scrollHeight
+          width: 794, // Fixed A4 width at 96 DPI (210mm * 96/25.4)
+          height: 1123, // Fixed A4 height at 96 DPI (297mm * 96/25.4)
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0
         });
 
-        // Convert canvas to image data
-        const imgData = canvas.toDataURL('image/png');
+        // Convert canvas to compressed image data
+        const imgData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG with 85% quality for smaller files
         
-        // Calculate dimensions to fit A4 page
-        const imgWidth = 210; // A4 width in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        // A4 dimensions in mm
+        const imgWidth = 210; 
+        const imgHeight = 297;
         
         // Add new page if not the first one
         if (!isFirstPage) {
@@ -171,15 +175,16 @@ export default function QuotePreview({
         }
         isFirstPage = false;
         
-        // Add image to PDF
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        // Add image to PDF with exact A4 dimensions
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
 
       // Restore original page
       setCurrentPage(originalPage);
       
-      // Download the PDF
-      const filename = `quote-${quoteSubject || 'untitled'}-${date || new Date().toISOString().split('T')[0]}.pdf`;
+      // Generate timestamp for unique filename
+      const timestamp = Date.now();
+      const filename = `quote-${quoteSubject || 'untitled'}-${date || new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
       pdf.save(filename);
       
     } catch (error) {
@@ -187,7 +192,7 @@ export default function QuotePreview({
       alert('Failed to generate PDF. Please try again.');
       
       // Restore original page in case of error
-      setCurrentPage(currentPage);
+      setCurrentPage(originalPage);
     } finally {
       setIsGeneratingPdf(false);
     }
