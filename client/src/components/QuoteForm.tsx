@@ -97,30 +97,45 @@ export default function QuoteForm() {
   const [quoteName, setQuoteName] = useState<string>("");
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Debounce form data for performance optimization (200ms as specified)
   const debouncedFormData = useDebounce(formData, 200);
 
-  // API queries and mutations for quote management
-  const { data: quotes = [], isLoading: isLoadingQuotes } = useQuery({
+  // API queries and mutations for quote management  
+  const { data: quotes = [], isLoading: isLoadingQuotes } = useQuery<any[]>({
     queryKey: ['/api/quote-forms'],
     enabled: isOpenDialogOpen, // Only fetch when dialog is open for performance
   });
 
+  // Filter quotes based on search query
+  const filteredQuotes = quotes.filter((quote: any) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (quote.quoteSubject || '').toLowerCase().includes(query) ||
+      (quote.customerCompany || '').toLowerCase().includes(query) ||
+      (quote.salesPersonName || '').toLowerCase().includes(query)
+    );
+  });
+
   const saveQuoteMutation = useMutation({
-    mutationFn: (quoteData: QuoteFormData) => {
+    mutationFn: async ({ quoteData, forceCreate = false }: { quoteData: QuoteFormData; forceCreate?: boolean }) => {
       const body = {
         ...quoteData,
         lastModified: new Date().toISOString(),
       };
-      return currentQuoteId
-        ? apiRequest(`/api/quote-forms/${currentQuoteId}`, { method: 'PUT', body })
-        : apiRequest('/api/quote-forms', { method: 'POST', body });
+      const shouldUpdate = !forceCreate && currentQuoteId;
+      const response = shouldUpdate
+        ? await apiRequest('PUT', `/api/quote-forms/${currentQuoteId}`, body)
+        : await apiRequest('POST', '/api/quote-forms', body);
+      return await response.json();
     },
-    onSuccess: (savedQuote) => {
-      if (!currentQuoteId) {
+    onSuccess: (savedQuote: any) => {
+      // Update state for new quotes or when forceCreate was used (Save As)
+      if (!currentQuoteId || savedQuote.id !== currentQuoteId) {
         setCurrentQuoteId(savedQuote.id);
         setQuoteName(savedQuote.quoteSubject || 'Untitled Quote');
       }
@@ -140,7 +155,10 @@ export default function QuoteForm() {
   });
 
   const deleteQuoteMutation = useMutation({
-    mutationFn: (quoteId: string) => apiRequest(`/api/quote-forms/${quoteId}`, { method: 'DELETE' }),
+    mutationFn: async (quoteId: string) => {
+      const response = await apiRequest('DELETE', `/api/quote-forms/${quoteId}`);
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quote-forms'] });
       toast({
@@ -159,7 +177,7 @@ export default function QuoteForm() {
 
   // Quote management handlers
   const handleSaveQuote = () => {
-    saveQuoteMutation.mutate(formData);
+    saveQuoteMutation.mutate({ quoteData: formData });
   };
 
   const handleSaveAsQuote = (newName: string) => {
@@ -167,12 +185,9 @@ export default function QuoteForm() {
       ...formData,
       quoteSubject: newName || formData.quoteSubject,
     };
-    // Reset current quote ID to force a new quote creation
-    const originalId = currentQuoteId;
-    setCurrentQuoteId(null);
-    saveQuoteMutation.mutate(quoteToSave);
+    // Force create new quote instead of updating existing one
+    saveQuoteMutation.mutate({ quoteData: quoteToSave, forceCreate: true });
     setIsSaveAsDialogOpen(false);
-    setQuoteName(newName || formData.quoteSubject);
   };
 
   const handleOpenQuote = (quote: any) => {
@@ -180,7 +195,19 @@ export default function QuoteForm() {
     setFormData(migratedData);
     setCurrentQuoteId(quote.id);
     setQuoteName(quote.quoteSubject || 'Untitled Quote');
+    
+    // Handle logo preview restoration (graceful degradation for now)
+    // If customerLogo is a URL, restore it; otherwise, clear the preview
+    if (quote.customerLogo && quote.customerLogo.startsWith('http')) {
+      setCustomerLogoUrl(quote.customerLogo);
+    } else {
+      setCustomerLogoUrl('');
+    }
+    
+    // Clear search and close dialog
+    setSearchQuery('');
     setIsOpenDialogOpen(false);
+    
     toast({
       title: "Quote loaded",
       description: `Opened quote "${quote.quoteSubject || 'Untitled'}"`,
@@ -192,6 +219,7 @@ export default function QuoteForm() {
     setCurrentQuoteId(null);
     setQuoteName("");
     setCustomerLogoUrl("");
+    setSearchQuery(""); // Clear search when creating new quote
     toast({
       title: "New quote created",
       description: "Started with a blank quote form.",
@@ -250,6 +278,13 @@ export default function QuoteForm() {
       saveToLocalStorage();
     }
   }, [debouncedFormData, saveToLocalStorage]);
+
+  // Sync quote name with form data when quote subject changes
+  useEffect(() => {
+    if (currentQuoteId && formData.quoteSubject !== quoteName) {
+      setQuoteName(formData.quoteSubject || 'Untitled Quote');
+    }
+  }, [formData.quoteSubject, currentQuoteId, quoteName]);
 
   const handleLogoChange = (file: File | null) => {
     if (file) {
@@ -611,6 +646,15 @@ export default function QuoteForm() {
               Select a quote to open and edit.
             </DialogDescription>
           </DialogHeader>
+          <div className="px-6 pb-4">
+            <Input
+              placeholder="Search quotes by name, customer, or sales person..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search-quotes"
+              className="w-full"
+            />
+          </div>
           <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
             {isLoadingQuotes ? (
               <div className="text-center py-8">
@@ -623,9 +667,16 @@ export default function QuoteForm() {
                   Start creating quotes and they will appear here.
                 </p>
               </div>
+            ) : filteredQuotes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No quotes match your search.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Try a different search term or clear the search to see all quotes.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {quotes.map((quote: any) => (
+                {filteredQuotes.map((quote: any) => (
                   <div
                     key={quote.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
