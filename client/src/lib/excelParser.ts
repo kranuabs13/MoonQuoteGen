@@ -180,7 +180,7 @@ function parseBomItemsSheet(
     let headerRowIndex = -1;
     const headers: string[] = [];
     
-    for (let i = 0; i < Math.min(data.length, 5); i++) {
+    for (let i = 0; i < Math.min(data.length, 25); i++) {
       const row = data[i];
       if (!row) continue;
       
@@ -205,6 +205,12 @@ function parseBomItemsSheet(
     for (let i = headerRowIndex + 1; i < data.length; i++) {
       const row = data[i];
       if (!row || row.every(cell => !cell)) continue; // Skip empty rows
+      
+      // Skip non-data rows (group labels, repeated headers, etc.)
+      if (isNonDataRow(row, headers)) {
+        result.warnings.push(`Row ${i + 1}: Skipped non-data row`);
+        continue;
+      }
 
       const item = parseBomRow(row, columnMap, i + 1, result, validateData);
       if (item) {
@@ -325,6 +331,64 @@ function mapCostColumns(headers: string[]): Record<string, number> {
   });
 
   return map;
+}
+
+function isNonDataRow(row: any[], headers: string[]): boolean {
+  // Convert all cells in the row to strings for analysis
+  const rowValues = row.map(cell => String(cell || '').trim());
+  const rowText = rowValues.join(' ').toLowerCase();
+  
+  // Skip rows that are clearly group labels
+  if (rowText.includes('📦') || rowText.includes('group') || rowText.includes('🔧') || rowText.includes('💻')) {
+    return true;
+  }
+  
+  // Skip rows that match header patterns (repeated headers throughout the sheet)
+  const headerPatterns = [
+    'part number',
+    'product description', 
+    'qty',
+    'quantity',
+    'unit price',
+    'total price',
+    'no.'
+  ];
+  
+  // Check if this row looks like a header row
+  const matchedHeaders = headerPatterns.filter(pattern => rowText.includes(pattern));
+  if (matchedHeaders.length >= 2) {
+    return true;
+  }
+  
+  // Skip rows that are mostly instructional text or formatting
+  const instructionalPatterns = [
+    'enter your',
+    'add items',
+    'total:',
+    'subtotal',
+    'instructions',
+    'notes:',
+    'please',
+    'example',
+    'sample'
+  ];
+  
+  for (const pattern of instructionalPatterns) {
+    if (rowText.includes(pattern)) {
+      return true;
+    }
+  }
+  
+  // Skip rows where the first few cells are all text and no numeric/product-like content
+  const firstThreeCells = rowValues.slice(0, 3).join(' ').toLowerCase();
+  if (firstThreeCells.length > 0 && 
+      !firstThreeCells.match(/[0-9]/) && 
+      !firstThreeCells.match(/\w{3,}-\w/) && // Product codes like "ABC-123"
+      firstThreeCells.split(' ').every(word => word.length > 15)) { // Avoid very long descriptive text
+    return true;
+  }
+  
+  return false;
 }
 
 function parseBomRow(
