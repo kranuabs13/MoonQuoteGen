@@ -45,18 +45,23 @@ export default function PrintPage() {
   useEffect(() => {
     const loadQuoteData = async () => {
       try {
-        // Get jobId from URL params
-        const urlParams = new URLSearchParams(location.split('?')[1] || '');
+        // Get jobId from URL params using window.location.search
+        const urlParams = new URLSearchParams(window.location.search);
         const jobId = urlParams.get('jobId');
         
         if (jobId) {
+          console.log('Print page: Fetching export job data for jobId:', jobId);
           // Fetch quote data from export job API
           const response = await fetch(`/api/export/job/${jobId}`);
+          console.log('Print page: Export job API response status:', response.status);
           if (response.ok) {
             const data = await response.json();
+            console.log('Print page: Export job data received:', data);
             setQuoteData(data.quoteData);
           } else {
-            throw new Error('Failed to load export job data');
+            const errorText = await response.text();
+            console.error('Print page: Export job API failed:', response.status, errorText);
+            throw new Error(`Failed to load export job data: ${response.status} ${errorText}`);
           }
         } else {
           // Fallback to localStorage
@@ -126,7 +131,7 @@ export default function PrintPage() {
     };
 
     loadQuoteData();
-  }, [location]);
+  }, []);  // Remove location dependency since we're using window.location.search
 
   useEffect(() => {
     if (!quoteData) return;
@@ -180,13 +185,52 @@ export default function PrintPage() {
       // Additional delay for layout stabilization
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Set readiness flag for Playwright
+      // Set readiness flag for external tools
       (window as any).__EXPORT_READY = true;
       setIsReady(true);
     };
 
     prepareForPrint();
   }, [quoteData]);
+
+  // Auto-print functionality
+  useEffect(() => {
+    if (!isReady) return;
+    
+    // Check if auto-print is enabled via URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldAutoPrint = urlParams.get('auto') === '1';
+    
+    if (shouldAutoPrint) {
+      console.log('Auto-printing enabled, triggering print dialog...');
+      
+      // Small delay to ensure everything is rendered
+      setTimeout(() => {
+        window.print();
+        
+        // Set up event listener to close the tab after printing
+        const handleAfterPrint = () => {
+          console.log('Print dialog closed, closing tab...');
+          window.removeEventListener('afterprint', handleAfterPrint);
+          // Close the tab if it was opened by the export function
+          if (window.opener) {
+            window.close();
+          }
+        };
+        
+        window.addEventListener('afterprint', handleAfterPrint);
+        
+        // Fallback: close tab after 10 seconds if user doesn't print
+        setTimeout(() => {
+          if (window.opener) {
+            console.log('Auto-closing tab after timeout...');
+            window.removeEventListener('afterprint', handleAfterPrint);
+            window.close();
+          }
+        }, 10000);
+      }, 200);
+    }
+  }, [isReady]);  // Remove location dependency since we're using window.location.search
 
   if (!quoteData) {
     return (

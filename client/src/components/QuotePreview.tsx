@@ -148,19 +148,20 @@ export default function QuotePreview({
         const { jobId } = await jobResponse.json();
         console.log('Export job created:', jobId);
         
-        // Step 2: Trigger PDF generation and download
-        console.log('Generating PDF...');
+        // Step 2: Open print page with auto-print
+        console.log('Opening print page...');
         const pdfUrl = `/api/export/pdf/${jobId}`;
         
-        // Open download link
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = `quote-${quoteSubject || 'document'}.pdf`.replace(/[^a-z0-9.-]/gi, '_');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Open PDF URL in new tab (server will redirect to print page with auto-print)
+        const printWindow = window.open(pdfUrl, '_blank');
         
-        console.log('PDF download initiated successfully');
+        if (printWindow) {
+          console.log('Print page opened in new tab');
+        } else {
+          console.warn('Popup blocked. Please allow popups to use PDF export.');
+        }
+        
+        console.log('PDF export initiated successfully');
         
       } catch (error) {
         console.error('PDF export failed:', error);

@@ -6,7 +6,6 @@ import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
-import puppeteer from 'puppeteer';
 
 // Schema for saving quotes with BOM and cost items
 const saveQuoteSchema = z.object({
@@ -156,93 +155,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF generation endpoint using Puppeteer
+  // PDF export endpoint - redirects to print page with auto-print
   app.get("/api/export/pdf/:jobId", async (req, res) => {
     try {
       const { jobId } = req.params;
       
-      // Get export job
+      // Verify export job exists
       const job = await storage.getExportJob(jobId);
       if (!job) {
         return res.status(404).json({ error: 'Export job not found or expired' });
       }
       
-      console.log('Generating PDF with Puppeteer for job:', jobId);
+      console.log('Redirecting to client-side print for job:', jobId);
       
-      // Build base URL for the print route
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const printUrl = `${baseUrl}/print?jobId=${jobId}`;
+      // Use relative redirect to avoid protocol/host issues in proxy environments
+      const printUrl = `/print?jobId=${jobId}&auto=1`;
       
-      // Launch Puppeteer with Replit-friendly options
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor'
-        ]
-      });
-      
-      const page = await browser.newPage();
-      
-      try {
-        // Set print media emulation before navigation
-        await page.emulateMediaType('print');
-        
-        // Navigate to print route with quote data
-        await page.goto(printUrl, { 
-          waitUntil: 'networkidle0',
-          timeout: 30000
-        });
-        
-        // Wait for the page to be ready for export (includes background images)
-        await page.waitForFunction(() => (window as any).__EXPORT_READY === true, {
-          timeout: 20000
-        });
-        
-        // Additional wait for layout stabilization
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate PDF with exact preview settings
-        const pdfBuffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          margin: {
-            top: '0mm',
-            right: '0mm', 
-            bottom: '0mm',
-            left: '0mm'
-          }
-        });
-        
-        console.log('PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
-        
-        // Generate filename
-        const subject = job.quoteData.quote?.subject || job.quoteData.quoteSubject || 'quote';
-        const suggestedFilename = `quote-${subject}.pdf`.replace(/[^a-z0-9.-]/gi, '_');
-        
-        // Set headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${suggestedFilename}"`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        
-        // Send the PDF buffer
-        res.send(pdfBuffer);
-        
-        // Cleanup export job after successful generation
-        await storage.deleteExportJob(jobId);
-        
-      } finally {
-        await browser.close();
-      }
+      // Redirect to print page which will auto-trigger print dialog
+      res.redirect(302, printUrl);
       
     } catch (error: unknown) {
-      console.error('Error generating PDF:', error);
+      console.error('Error redirecting to print page:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: 'Failed to generate PDF: ' + errorMessage });
+      res.status(500).json({ error: 'Failed to initiate PDF export: ' + errorMessage });
     }
   });
 
