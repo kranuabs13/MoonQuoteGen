@@ -160,35 +160,141 @@ export default function BomGroupsSection({
     const group = bomGroups.find(g => g.id === groupId);
     if (!group) return;
 
-    const newItems: BomItem[] = rows.map((row, index) => {
+    // Helper function to check if a row is a header or instructional text
+    const isDataRow = (row: string): boolean => {
+      const trimmedRow = row.trim().toLowerCase();
+      
+      // Skip header rows (containing column names)
+      const headerPatterns = [
+        'part number',
+        'product description',
+        'qty',
+        'unit price',
+        'total price',
+        'field',
+        'value',
+        'description'
+      ];
+      
+      // Skip instructional/separator lines
+      const skipPatterns = [
+        '===',
+        'multiple bom groups',
+        'copy and paste',
+        'how to use',
+        'column order',
+        'note:',
+        'example',
+        'template',
+        'instructions',
+        'manufacturer part',
+        'detailed product',
+        'quantity needed',
+        'price per unit'
+      ];
+      
+      // Check if row contains header patterns
+      if (headerPatterns.some(pattern => trimmedRow.includes(pattern))) {
+        return false;
+      }
+      
+      // Check if row contains skip patterns
+      if (skipPatterns.some(pattern => trimmedRow.includes(pattern))) {
+        return false;
+      }
+      
+      // Split the row and validate it has meaningful data
       const cells = row.split('\t');
-      const partNumber = cells[0] || '';
-      const productDescription = cells[1] || '';
-      const quantity = parseInt(cells[2]) || 1;
-      const unitPrice = parseFloat(cells[3]) || undefined;
+      
+      // Need at least 3 cells with data (part number, description, quantity)
+      if (cells.length < 3) return false;
+      
+      // Part number should not be empty
+      const partNumber = (cells[0] || '').trim();
+      if (!partNumber) return false;
+      
+      // Product description should not be empty
+      const description = (cells[1] || '').trim();
+      if (!description) return false;
+      
+      // Quantity should be a valid number
+      const quantityText = (cells[2] || '').trim();
+      const quantity = parseInt(quantityText);
+      if (!Number.isFinite(quantity) || quantity <= 0) return false;
+      
+      return true;
+    };
+
+    // Filter and process only valid data rows
+    const validRows = rows.filter(isDataRow);
+    
+    // Parse raw data and extract unit prices BEFORE applying column visibility
+    const rawParsedItems = validRows.map((row, index) => {
+      const cells = row.split('\t');
+      const partNumber = (cells[0] || '').trim();
+      const productDescription = (cells[1] || '').trim();
+      const quantity = parseInt((cells[2] || '').trim());
+      
+      // Parse unit price, but only if it's a valid number
+      const unitPriceText = (cells[3] || '').trim();
+      let unitPrice: number | undefined = undefined;
+      if (unitPriceText) {
+        const parsed = parseFloat(unitPriceText);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          unitPrice = parsed;
+        }
+      }
 
       return {
         no: group.items.length + index + 1,
         partNumber,
         productDescription,
         quantity,
-        unitPrice: columnVisibility.unitPrice ? unitPrice : undefined,
-        totalPrice: columnVisibility.totalPrice && unitPrice ? quantity * unitPrice : undefined,
+        unitPrice, // Keep the raw unit price for auto-enable detection
       };
     });
+
+    if (rawParsedItems.length === 0) {
+      console.log('No valid BOM items found in pasted data - all rows were headers or invalid');
+      return;
+    }
+
+    // Check if any pasted items have unit prices and auto-enable price columns if needed
+    // Check the RAW data before column visibility masking
+    const hasUnitPrices = rawParsedItems.some(item => item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice > 0);
+    let updatedColumnVisibility = columnVisibility;
+    
+    if (hasUnitPrices && (!columnVisibility.unitPrice || !columnVisibility.totalPrice)) {
+      updatedColumnVisibility = {
+        ...columnVisibility,
+        unitPrice: true,
+        totalPrice: true
+      };
+      
+      // Update column visibility to show the price columns
+      onColumnVisibilityChange(updatedColumnVisibility);
+      console.log('Auto-enabled price columns because pasted data contains unit prices');
+    }
+
+    // Now create the final items with proper price visibility based on (possibly updated) column settings
+    const itemsWithCorrectPricing = rawParsedItems.map(item => ({
+      ...item,
+      unitPrice: updatedColumnVisibility.unitPrice ? item.unitPrice : undefined,
+      totalPrice: updatedColumnVisibility.totalPrice && item.unitPrice ? item.quantity * item.unitPrice : undefined,
+    }));
 
     const updatedGroups = bomGroups.map(g => {
       if (g.id === groupId) {
         return {
           ...g,
-          items: [...g.items, ...newItems]
+          items: [...g.items, ...itemsWithCorrectPricing]
         };
       }
       return g;
     });
 
     onBomGroupsChange(updatedGroups);
-    console.log(`Pasted ${newItems.length} items from Excel to group ${groupId}`);
+    console.log(`Pasted ${itemsWithCorrectPricing.length} valid items from Excel to group ${groupId} (filtered out ${rows.length - validRows.length} header/instruction rows)`);
   };
 
   const toggleColumnVisibility = (column: keyof ColumnVisibility) => {

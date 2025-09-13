@@ -52,60 +52,83 @@ export function createExcelTemplate(options: ExcelTemplateOptions = {}): ArrayBu
     XLSX.utils.book_append_sheet(workbook, quoteSheet, 'Quote Info');
   }
 
-  // Sheet 2: BOM Items
+  // Sheet 2: BOM Items (Multiple Groups Support)
   if (includeBomItems) {
     const bomHeaders = [];
-    const bomSampleRow = [];
     const bomDescriptions = [];
+    const bomInstructions = [];
 
     // Always include ALL possible BOM columns in template (regardless of current visibility)
-    bomHeaders.push('NO');
-    bomSampleRow.push('1');
-    bomDescriptions.push('Item number');
-
     bomHeaders.push('Part Number');
-    bomSampleRow.push('VH2G4324-ONE');
     bomDescriptions.push('Manufacturer part number');
+    bomInstructions.push('VH2G4324-ONE');
 
     bomHeaders.push('Product Description');
-    bomSampleRow.push('Catalyst 9300 48-port PoE+');
     bomDescriptions.push('Detailed product description');
+    bomInstructions.push('Catalyst 9300 48-port PoE+');
 
     bomHeaders.push('QTY');
-    bomSampleRow.push('2');
     bomDescriptions.push('Quantity needed');
+    bomInstructions.push('2');
 
     bomHeaders.push('Unit Price');
-    bomSampleRow.push('1500.00');
     bomDescriptions.push('Price per unit (numbers only)');
+    bomInstructions.push('1500.00');
 
-    bomHeaders.push('Total Price');
-    bomSampleRow.push('3000.00');
-    bomDescriptions.push('Total price (QTY × Unit Price)');
-
+    // Create clean data template with separate instruction section
     const bomData = [
-      bomHeaders,
-      bomDescriptions, // Description row to help users
-      bomSampleRow,    // Sample data row
+      // Instructions Section (clearly separated)
+      ['INSTRUCTIONS - Do NOT copy this section', '', '', ''],
+      ['', '', '', ''],
+      ['HOW TO USE BOM TEMPLATE:', '', '', ''],
+      ['1. Select ONLY the data rows from a group below (do NOT include headers)', '', '', ''],
+      ['2. Copy the selected data (Ctrl+C)', '', '', ''],
+      ['3. In the app, click inside a BOM group table', '', '', ''],
+      ['4. Paste (Ctrl+V) - headers and invalid rows will be automatically filtered', '', '', ''],
+      ['5. Repeat for additional groups', '', '', ''],
+      ['', '', '', ''],
+      ['COLUMN ORDER: Part Number | Product Description | QTY | Unit Price', '', '', ''],
+      ['NOTE: NO and Total Price columns are auto-calculated by the app', '', '', ''],
+      ['', '', '', ''],
+      ['', '', '', ''],
+      
+      // Clean Data Groups (easy to select and copy)
+      ['GROUP 1: Network Switches', '', '', ''],
+      ['C9300-48P', 'Catalyst 9300 48-port PoE+ Switch', '1', '2500.00'],
+      ['PWR-C1-715WAC', 'Power Supply 715W AC', '1', '400.00'],
+      ['C9300-NM-8X', 'Network Module 8x10G', '1', '1200.00'],
+      ['', '', '', ''],
+      
+      ['GROUP 2: Cables & Accessories', '', '', ''],
+      ['CAB-C13-C14-2M', 'Power Cable 2M', '4', '25.00'],
+      ['CAB-ETH-S-RJ45', 'Ethernet Cable 1M', '8', '15.00'],
+      ['RACK-MOUNT-KIT', 'Rack Mount Kit', '1', '75.00'],
+      ['', '', '', ''],
+      
+      ['GROUP 3: Security Equipment', '', '', ''],
+      ['FIREWALL-60F', 'FortiGate 60F Firewall', '1', '800.00'],
+      ['UPS-1500VA', 'UPS 1500VA Battery Backup', '2', '350.00'],
+      ['SENSOR-ENV', 'Environmental Sensor', '4', '120.00'],
+      ['', '', '', ''],
+      
+      ['GROUP 4: Sample Data (Mixed Prices)', '', '', ''],
+      ['ITEM-001', 'Sample Item Without Price', '3', ''],
+      ['ITEM-002', 'Sample Item With Price', '2', '199.99'],
+      ['ITEM-003', 'Another Sample Item', '1', '50.00'],
     ];
 
     const bomSheet = XLSX.utils.aoa_to_sheet(bomData);
     
     // Set column widths based on content
-    const colWidths = bomHeaders.map(header => {
-      switch (header) {
-        case 'NO': return { wch: 5 };
-        case 'Part Number': return { wch: 15 };
-        case 'Product Description': return { wch: 35 };
-        case 'QTY': return { wch: 8 };
-        case 'Unit Price':
-        case 'Total Price': return { wch: 12 };
-        default: return { wch: 15 };
-      }
-    });
+    const colWidths = [
+      { wch: 20 }, // Part Number / Instructions
+      { wch: 40 }, // Product Description
+      { wch: 8 },  // QTY
+      { wch: 12 }  // Unit Price
+    ];
     bomSheet['!cols'] = colWidths;
 
-    XLSX.utils.book_append_sheet(workbook, bomSheet, 'BOM Items');
+    XLSX.utils.book_append_sheet(workbook, bomSheet, 'BOM Items (Multi-Group)');
   }
 
   // Sheet 3: Cost Items
