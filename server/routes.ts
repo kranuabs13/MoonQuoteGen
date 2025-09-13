@@ -6,7 +6,9 @@ import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
-import { Document, Page, Text, View, StyleSheet, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
+import { readFileSync } from "fs";
+import { join } from "path";
 import * as React from "react";
 
 // Schema for saving quotes with BOM and cost items
@@ -128,12 +130,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Quote data is required' });
       }
 
-      // Generate PDF using React PDF
+      // Generate PDF using React PDF with file-based images (secure)
       const QuotePDFDocument = generateQuotePDF(quoteData);
       const pdfBuffer = await renderToBuffer(QuotePDFDocument);
       
-      // Set response headers for PDF download
-      const filename = `quote-${quoteData.quote?.subject || 'untitled'}-${quoteData.date || new Date().toISOString().split('T')[0]}.pdf`;
+      // Set response headers for PDF download with sanitized filename
+      const sanitizedSubject = (quoteData.quote?.subject || 'untitled')
+        .replace(/[^A-Za-z0-9 _-]+/g, '')
+        .slice(0, 50)
+        .trim() || 'untitled';
+      const sanitizedDate = (quoteData.date || new Date().toISOString().split('T')[0])
+        .replace(/[^0-9-]/g, '');
+      const filename = `quote-${sanitizedSubject}-${sanitizedDate}.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Length', pdfBuffer.length);
@@ -157,6 +165,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 // Helper function to generate React PDF document
 function generateQuotePDF(quoteData: any): React.ReactElement<DocumentProps> {
   const { quote, bomItems = [], costItems = [], columnVisibility = {}, bomEnabled = true, costsEnabled = true, date, version, contact = {} } = quoteData;
+  
+  // Load images from filesystem as buffers (secure approach)
+  const assetsPath = join(process.cwd(), 'public', 'assets');
+  const emetLogoBuffer = readFileSync(join(assetsPath, 'image_1757577759606.png'));
+  const techDiagramBuffer = readFileSync(join(assetsPath, 'image_1757577458643.png'));
+  const frameImageBuffer = readFileSync(join(assetsPath, 'image_1757577550193.png'));
   
   // Calculate grand total
   const grandTotal = costItems.reduce((sum: number, item: any) => {
@@ -183,85 +197,184 @@ function generateQuotePDF(quoteData: any): React.ReactElement<DocumentProps> {
     return new Date(dateStr).toLocaleDateString('en-GB');
   };
 
-  // PDF Styles
+  // PDF Styles - matching original design exactly
   const styles = StyleSheet.create({
+    // Page 1 - Cover page with frame background
+    coverPage: {
+      flexDirection: 'column',
+      backgroundColor: 'white',
+      padding: 0,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    // Regular pages
     page: {
       flexDirection: 'column',
       backgroundColor: 'white',
-      padding: 30,
-      fontFamily: 'Helvetica'
+      padding: 0,
+      position: 'relative'
     },
-    coverPage: {
-      flexDirection: 'column',
-      backgroundColor: '#f8f9fa',
-      justifyContent: 'center',
+    // Frame background for page 1
+    frameBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%'
+    },
+    // EMET logo positioning
+    emetLogoLarge: {
+      position: 'absolute',
+      top: 60,
+      left: 250, // Center positioning manually calculated
+      width: 120
+    },
+    emetLogoSmall: {
+      position: 'absolute',
+      top: 24,
+      left: 24,
+      width: 60
+    },
+    // Cover page content
+    coverContent: {
+      flex: 1,
       alignItems: 'center',
+      justifyContent: 'center',
+      paddingLeft: 64,
+      paddingRight: 64,
+      textAlign: 'center',
+      zIndex: 1
+    },
+    coverTitle: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      color: '#000',
+      marginBottom: 16,
       textAlign: 'center'
     },
-    title: {
-      fontSize: 32,
-      marginBottom: 20,
-      fontWeight: 'bold',
-      color: '#333'
+    coverSubtitle: {
+      fontSize: 24,
+      color: '#000',
+      marginBottom: 8,
+      lineHeight: 1.2,
+      textAlign: 'center'
     },
-    subtitle: {
-      fontSize: 20,
-      marginBottom: 15,
-      color: '#555'
+    coverBottomContainer: {
+      position: 'absolute',
+      bottom: 64,
+      left: 0,
+      right: 0
+    },
+    coverBottomText: {
+      textAlign: 'center',
+      fontSize: 14,
+      color: '#000'
+    },
+    pageNumberContainer: {
+      position: 'absolute',
+      bottom: 32,
+      left: 0,
+      right: 0
+    },
+    pageNumberText: {
+      textAlign: 'center',
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: '#000'
+    },
+    // Content pages
+    contentContainer: {
+      paddingTop: 80,
+      paddingLeft: 48,
+      paddingRight: 48,
+      paddingBottom: 48
     },
     sectionTitle: {
-      fontSize: 18,
-      marginBottom: 15,
+      fontSize: 20,
       fontWeight: 'bold',
-      color: '#333'
+      marginBottom: 24,
+      color: '#111827'
     },
     text: {
       fontSize: 12,
-      marginBottom: 10,
+      marginBottom: 16,
       lineHeight: 1.5,
-      color: '#333'
-    },
-    list: {
-      marginLeft: 20,
-      marginBottom: 15
+      color: '#374151'
     },
     listItem: {
       fontSize: 12,
-      marginBottom: 5,
-      color: '#333'
+      marginBottom: 8,
+      marginLeft: 20,
+      lineHeight: 1.5,
+      color: '#374151'
     },
+    // Technology diagram
+    techDiagram: {
+      width: '100%',
+      maxWidth: 600,
+      marginTop: 32,
+      marginBottom: 32,
+      alignSelf: 'center'
+    },
+    // Tables
     table: {
       width: '100%',
-      borderStyle: 'solid',
-      borderWidth: 1,
-      borderColor: '#ccc',
       marginBottom: 20
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      backgroundColor: '#4A90E2',
+      borderBottomWidth: 1,
+      borderBottomColor: '#ccc'
+    },
+    tableHeaderCell: {
+      padding: 8,
+      fontSize: 10,
+      fontWeight: 'bold',
+      color: 'white',
+      borderRightWidth: 1,
+      borderRightColor: '#ccc'
     },
     tableRow: {
       flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: '#eee'
-    },
-    tableHeader: {
-      backgroundColor: '#4A90E2',
-      color: 'white',
-      fontWeight: 'bold'
+      borderBottomColor: '#e5e7eb'
     },
     tableCell: {
       padding: 8,
       fontSize: 10,
+      color: '#374151',
       borderRightWidth: 1,
-      borderRightColor: '#eee',
-      flex: 1
+      borderRightColor: '#e5e7eb'
     },
-    footer: {
-      position: 'absolute',
-      bottom: 30,
-      left: 0,
-      right: 0,
-      textAlign: 'center',
-      fontSize: 10,
-      color: '#666'
+    // IP section
+    ipText: {
+      fontSize: 11,
+      marginBottom: 16,
+      lineHeight: 1.5,
+      color: '#374151'
+    },
+    // Payment terms
+    paymentList: {
+      marginLeft: 24
+    },
+    paymentListItem: {
+      fontSize: 12,
+      marginBottom: 12,
+      lineHeight: 1.5,
+      color: '#374151'
+    },
+    signatureSection: {
+      marginTop: 48
+    },
+    signatureLine: {
+      borderBottomWidth: 1,
+      borderBottomColor: '#9ca3af',
+      paddingBottom: 8,
+      marginBottom: 16,
+      fontSize: 12,
+      color: '#374151'
     },
     grandTotal: {
       fontSize: 16,
@@ -275,52 +388,80 @@ function generateQuotePDF(quoteData: any): React.ReactElement<DocumentProps> {
   });
 
   return React.createElement(Document, {},
-    // Page 1 - Cover Page
-    React.createElement(Page, { size: 'A4', style: [styles.page, styles.coverPage] },
-      React.createElement(View, { style: { alignItems: 'center', justifyContent: 'center', flex: 1 } },
-        React.createElement(Text, { style: styles.title }, 'Quotation For'),
-        React.createElement(Text, { style: styles.subtitle }, quote?.subject || 'Cisco Catalyst Switch'),
-        React.createElement(View, { style: { marginTop: 40 } },
-          React.createElement(Text, { style: styles.text }, 
-            `${quote?.salesPerson || 'David Gilboa'} | ${formatDate(date)} | Ver ${version || '1'}`
-          )
+    // Page 1 - Cover Page with Frame Background
+    React.createElement(Page, { size: 'A4', style: styles.coverPage },
+      // Frame background image
+      React.createElement(Image, { src: frameImageBuffer, style: styles.frameBackground }),
+      
+      // Large EMET logo at top center
+      React.createElement(Image, { src: emetLogoBuffer, style: styles.emetLogoLarge }),
+      
+      // Cover content
+      React.createElement(View, { style: styles.coverContent },
+        React.createElement(Text, { style: styles.coverTitle }, 'Quotation For'),
+        React.createElement(Text, { style: styles.coverSubtitle }, quote?.subject || 'Cisco Catalyst Switch')
+      ),
+      
+      // Bottom info
+      React.createElement(View, { style: styles.coverBottomContainer },
+        React.createElement(Text, { style: styles.coverBottomText },
+          `${quote?.salesPerson || 'David Gilboa'} | ${formatDate(date)} | Ver ${version || '1'}`
         )
       ),
-      React.createElement(Text, { style: styles.footer }, '1')
+      
+      // Page number
+      React.createElement(View, { style: styles.pageNumberContainer },
+        React.createElement(Text, { style: styles.pageNumberText, render: ({ pageNumber }) => pageNumber })
+      )
     ),
 
-    // Page 2 - Introduction
+    // Page 2 - Intro & Technology Diagram
     React.createElement(Page, { size: 'A4', style: styles.page },
-      React.createElement(Text, { style: styles.sectionTitle }, 'Intro'),
-      React.createElement(Text, { style: styles.text }, 
-        'EMET Dorcom is one of the most successful and experienced companies in the field of computer infrastructure and integration with extensive knowledge, which includes all types of technologies in the IT market.'
-      ),
-      React.createElement(Text, { style: styles.text }, 
-        'We provide comprehensive and complete solutions through the entire process and accompanies our customers in all stages, starting from the stage of needs analysis, planning the systems to the stages of assimilation, integration, and ongoing maintenance of the systems.'
-      ),
-      React.createElement(Text, { style: styles.text }, 
-        'Dorcom\'s portfolio of solutions is extensive and enables the provision of a complete and diverse solution:'
-      ),
-      React.createElement(View, { style: styles.list },
+      // EMET logo at top left
+      React.createElement(Image, { src: emetLogoBuffer, style: styles.emetLogoSmall }),
+      
+      React.createElement(View, { style: styles.contentContainer },
+        // Intro section
+        React.createElement(Text, { style: styles.sectionTitle }, 'Intro'),
+        React.createElement(Text, { style: styles.text }, 
+          'EMET Dorcom is one of the most successful and experienced companies in the field of computer infrastructure and integration with extensive knowledge, which includes all types of technologies in the IT market.'
+        ),
+        React.createElement(Text, { style: styles.text }, 
+          'We provide comprehensive and complete solutions through the entire process and accompanies our customers in all stages, starting from the stage of needs analysis, planning the systems to the stages of assimilation, integration, and ongoing maintenance of the systems.'
+        ),
+        React.createElement(Text, { style: styles.text }, 
+          'Dorcom\'s portfolio of solutions is extensive and enables the provision of a complete and diverse solution:'
+        ),
         React.createElement(Text, { style: styles.listItem }, '• Server and Storage'),
         React.createElement(Text, { style: styles.listItem }, '• Backup and replication'),
         React.createElement(Text, { style: styles.listItem }, '• Mobile and Workstation computing'),
         React.createElement(Text, { style: styles.listItem }, '• Software and operating system'),
         React.createElement(Text, { style: styles.listItem }, '• Networking - Switches and Wireless'),
-        React.createElement(Text, { style: styles.listItem }, '• Cybersecurity L2-L7')
+        React.createElement(Text, { style: styles.listItem }, '• Cybersecurity L2-L7'),
+        React.createElement(Text, { style: styles.text }, 
+          'Throughout every technological solution supplied by Dorcom, our commitment to professionalism is unwavering. We are proud to have partnerships with several the world\'s leading IT manufacturers, including: HPE, HPI, DELL, NetApp, VERITAS, Commvault, Veeam, Nutanix, Redhat, Aruba, Juniper, Fortinet, Cloudem.'
+        ),
+        
+        // Technology diagram
+        React.createElement(Image, { src: techDiagramBuffer, style: styles.techDiagram })
       ),
-      React.createElement(Text, { style: styles.text }, 
-        'Throughout every technological solution supplied by Dorcom, our commitment to professionalism is unwavering. We are proud to have partnerships with several the world\'s leading IT manufacturers, including: HPE, HPI, DELL, NetApp, VERITAS, Commvault, Veeam, Nutanix, Redhat, Aruba, Juniper, Fortinet, Cloudem.'
-      ),
-      React.createElement(Text, { style: styles.footer }, '2')
+      
+      // Page number
+      React.createElement(View, { style: styles.pageNumberContainer },
+        React.createElement(Text, { style: [styles.pageNumberText, { color: '#6b7280' }], render: ({ pageNumber }) => pageNumber })
+      )
     ),
 
     // Page 3 - BOM & Costs (conditionally rendered)
     ...(bomEnabled || costsEnabled ? [
       React.createElement(Page, { size: 'A4', style: styles.page },
-        ...(bomEnabled ? [
-          React.createElement(Text, { style: styles.sectionTitle }, 'BOM'),
-          React.createElement(Text, { style: { ...styles.text, fontWeight: 'bold' } }, quote?.subject || 'Catalyst 9300 48-port PoE+'),
+        // EMET logo at top left
+        React.createElement(Image, { src: emetLogoBuffer, style: styles.emetLogoSmall }),
+        
+        React.createElement(View, { style: styles.contentContainer },
+          ...(bomEnabled ? [
+            React.createElement(Text, { style: styles.sectionTitle }, 'BOM'),
+            React.createElement(Text, { style: { ...styles.text, fontSize: 16, fontWeight: 'bold', marginBottom: 16, color: '#374151' } }, quote?.subject || 'Catalyst 9300 48-port PoE+'),
           ...(bomItems.length > 0 ? [
             React.createElement(View, { style: styles.table },
               React.createElement(View, { style: [styles.tableRow, styles.tableHeader] },
@@ -369,49 +510,96 @@ function generateQuotePDF(quoteData: any): React.ReactElement<DocumentProps> {
             React.createElement(Text, { style: styles.grandTotal }, `Grand Total: ${formatCurrency(grandTotal)}`)
           ] : [React.createElement(Text, { style: { ...styles.text, textAlign: 'center', fontStyle: 'italic' } }, 'No cost items added yet')])
         ] : []),
-        React.createElement(Text, { style: styles.footer }, '3')
+        ),
+        
+        // Page number
+        React.createElement(View, { style: styles.pageNumberContainer },
+          React.createElement(Text, { style: [styles.pageNumberText, { color: '#6b7280' }], render: ({ pageNumber }) => pageNumber })
+        )
       )
     ] : []),
 
     // Page 4 - Payment Terms
     React.createElement(Page, { size: 'A4', style: styles.page },
-      React.createElement(Text, { style: styles.sectionTitle }, 'Payment & General Terms'),
-      React.createElement(View, { style: styles.list },
-        React.createElement(Text, { style: styles.listItem }, '1. Prices are not including VAT'),
-        React.createElement(Text, { style: styles.listItem }, '2. Installation is not included unless specifically stated in the quote.'),
-        React.createElement(Text, { style: styles.listItem }, '3. Payment in NIS will be at the dollar exchange rate represented on the day of the invoice issuance.'),
-        React.createElement(Text, { style: styles.listItem }, '4. Our offer is valid for a period of 14 days.'),
-        React.createElement(Text, { style: styles.listItem }, '5. The total price is for the purchase of the entire proposal'),
-        React.createElement(Text, { style: styles.listItem }, `6. Payment Terms - ${quote?.terms || 'Current +30'}`),
-        React.createElement(Text, { style: styles.listItem }, '7. Any delay in payment will result in the customer being charged an exceptional shekel-based interest or conversion to dollars according to the calculation that will produce the highest result.'),
-        React.createElement(Text, { style: styles.listItem }, '8. The contents will be delivered to the customer on the condition that the exchange for it will be fully paid according to the terms of the transaction.'),
-        React.createElement(Text, { style: styles.listItem }, '9. Subject to the general terms available at dorcom.co.il')
-      ),
-      React.createElement(View, { style: { marginTop: 40 } },
-        React.createElement(Text, { style: { ...styles.text, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 5, marginBottom: 15 } }, 'Name | ___________'),
-        React.createElement(Text, { style: { ...styles.text, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 5, marginBottom: 15 } }, 'Date | ___________'),
-        React.createElement(Text, { style: { ...styles.text, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 5, marginBottom: 15 } }, 'Company + Signature | ___________')
-      ),
-      React.createElement(Text, { style: styles.footer }, '4')
-    ),
-
-    // Page 5 - Contact Information
-    React.createElement(Page, { size: 'A4', style: styles.page },
-      React.createElement(Text, { style: styles.sectionTitle }, 'Contact Information'),
-      React.createElement(View, { style: { alignItems: 'center', marginBottom: 40 } },
-        React.createElement(Text, { style: { ...styles.text, fontSize: 14, marginBottom: 8 } }, `Sales Person: ${quote?.salesPerson || 'David Gilboa'}`),
-        React.createElement(Text, { style: { ...styles.text, fontSize: 14, marginBottom: 8 } }, `Email: ${contact.email || 'david@emetdorcom.com'}`),
-        React.createElement(Text, { style: { ...styles.text, fontSize: 14, marginBottom: 8 } }, `Phone: ${contact.phone || '+972-50-123-4567'}`),
-        React.createElement(Text, { style: { ...styles.text, fontSize: 14, marginBottom: 8 } }, 'Company: EMET Dorcom'),
-        React.createElement(Text, { style: { ...styles.text, fontSize: 14, marginBottom: 8 } }, `Address: ${contact.address || 'Tel Aviv, Israel'}`)
-      ),
-      React.createElement(View, { style: { marginTop: 60, alignItems: 'center' } },
-        React.createElement(Text, { style: { ...styles.text, fontSize: 16, fontWeight: 'bold', marginBottom: 20 } }, 'Thank you for choosing EMET Dorcom'),
-        React.createElement(Text, { style: { ...styles.text, textAlign: 'center', lineHeight: 1.6 } }, 
-          'We look forward to working with you and providing exceptional IT solutions that meet your business needs. Should you have any questions or require clarification on any aspect of this quotation, please don\'t hesitate to contact us.'
+      // EMET logo at top left
+      React.createElement(Image, { src: emetLogoBuffer, style: styles.emetLogoSmall }),
+      
+      React.createElement(View, { style: styles.contentContainer },
+        React.createElement(Text, { style: styles.sectionTitle }, 'Payment & General terms'),
+        React.createElement(View, { style: styles.paymentList },
+          React.createElement(Text, { style: styles.paymentListItem }, '1. Prices are not including VAT'),
+          React.createElement(Text, { style: styles.paymentListItem }, '2. Installation is not included unless specifically stated in the quote.'),
+          React.createElement(Text, { style: styles.paymentListItem }, '3. Payment in NIS will be at the dollar exchange rate represented on the day of the invoice issuance.'),
+          React.createElement(Text, { style: styles.paymentListItem }, '4. Our offer is valid for a period of 14 days.'),
+          React.createElement(Text, { style: styles.paymentListItem }, '5. The total price is for the purchase of the entire proposal'),
+          React.createElement(Text, { style: styles.paymentListItem }, `6. Payment Terms - ${quote?.paymentTerms || 'Current +30'}`),
+          React.createElement(Text, { style: styles.paymentListItem }, '7. Any delay in payment will result in the customer being charged an exceptional shekel-based interest or conversion to dollars according to the calculation that will produce the highest result.'),
+          React.createElement(Text, { style: styles.paymentListItem }, '8. The contents will be delivered to the customer on the condition that the exchange for it will be fully paid according to the terms of the transaction. Any rights not acquired by the customer, at any time that the full exchange has not been received by Dorcom Computers Ltd., and has not been fully waived. Dorcom Computers Ltd. reserves the right to immediately return the endorsement in the contents, if the customer does not meet the full terms and schedule of the transaction, or to credit any amount received from the customer as partial payment towards the items of the order. All of this according to its sole choice and discretion.'),
+          React.createElement(Text, { style: styles.paymentListItem }, '9. Subject to the general terms at https://dorcom.co.il')
+        ),
+        
+        React.createElement(View, { style: styles.signatureSection },
+          React.createElement(Text, { style: styles.signatureLine }, 'Name | ___________'),
+          React.createElement(Text, { style: styles.signatureLine }, 'Date | ___________'),
+          React.createElement(Text, { style: styles.signatureLine }, 'Company + Signature | ___________')
         )
       ),
-      React.createElement(Text, { style: styles.footer }, '5')
+      
+      // Page number
+      React.createElement(View, { style: styles.pageNumberContainer },
+        React.createElement(Text, { style: [styles.pageNumberText, { color: '#6b7280' }], render: ({ pageNumber }) => pageNumber })
+      )
+    ),
+
+    // Page 5 - Intellectual Property & Contact
+    React.createElement(Page, { size: 'A4', style: styles.page },
+      // EMET logo at top left
+      React.createElement(Image, { src: emetLogoBuffer, style: styles.emetLogoSmall }),
+      
+      React.createElement(View, { style: styles.contentContainer },
+        // Intellectual Property Section
+        React.createElement(View, { style: { marginBottom: 48 } },
+          React.createElement(Text, { style: styles.sectionTitle }, 'Intellectual property'),
+          React.createElement(Text, { style: styles.ipText },
+            'All rights, ownership and intellectual property rights (including, but not limited to, copyrights, professional knowledge and trade secrets) in the information contained in this document or any part thereof, as well as in any amendments or additions to this document, are owned by Dorcom Computers Ltd. This document does not imply, imply, or in any other way, grant any rights, ownership, intellectual property rights or license to use related to Dorcom or third parties.'
+          ),
+          React.createElement(Text, { style: styles.ipText },
+            'The information contained in this document is confidential and commercially sensitive, and may not be copied or disclosed to any third party without the prior written approval of Dorcom Computers Ltd. The intended recipient is authorized to disclose this information only to those of its employees directly involved in the project to which this document relates, who have a "need to know". It is the sole and exclusive responsibility of the recipient to ensure that all such employees are aware of these terms and act accordingly. The recipient is authorized to use the information contained herein for evaluation purposes only.'
+          ),
+          React.createElement(Text, { style: styles.ipText },
+            'The receipt of this document "as is" by the recipient shall not create any contractual relations unless and until an agreement on the terms of the project to which this document relates, including these terms, is signed by both parties. This document constitutes a non-binding proposal, which may be amended by Dorcom Computers Ltd. at any time, at its sole discretion. The recipient hereby agrees to return this document to Dorcom Computers Ltd. immediately upon request, and to destroy any copies made thereof.'
+          ),
+          React.createElement(Text, { style: styles.ipText },
+            'Any breach of these provisions by the recipient or any of its employees will entitle Dorcom Computers Ltd. to all legal remedies, including, but not limited to, damages and injunction, without the need for prior notice or proof of damage.'
+          )
+        ),
+        
+        // Contact Section
+        React.createElement(View, {},
+          React.createElement(Text, { style: styles.sectionTitle }, 'Contact'),
+          React.createElement(View, { style: styles.table },
+            React.createElement(View, { style: styles.tableHeader },
+              React.createElement(Text, { style: [styles.tableHeaderCell, { width: '25%' }] }, 'Name'),
+              React.createElement(Text, { style: [styles.tableHeaderCell, { width: '25%' }] }, 'Role'),
+              React.createElement(Text, { style: [styles.tableHeaderCell, { width: '25%' }] }, 'Phone'),
+              React.createElement(Text, { style: [styles.tableHeaderCell, { width: '25%', borderRightWidth: 0 }] }, 'Email')
+            ),
+            React.createElement(View, { style: styles.tableRow },
+              React.createElement(Text, { style: [styles.tableCell, { width: '25%' }] },
+                contact.salesPerson || quote?.salesPerson || 'David Gilboa'
+              ),
+              React.createElement(Text, { style: [styles.tableCell, { width: '25%' }] }, 'Account Manager'),
+              React.createElement(Text, { style: [styles.tableCell, { width: '25%' }] }, contact.phone || ''),
+              React.createElement(Text, { style: [styles.tableCell, { width: '25%', borderRightWidth: 0 }] }, contact.email || '')
+            )
+          )
+        )
+      ),
+      
+      // Page number
+      React.createElement(View, { style: styles.pageNumberContainer },
+        React.createElement(Text, { style: [styles.pageNumberText, { color: '#6b7280' }], render: ({ pageNumber }) => pageNumber })
+      )
     )
   );
 }
