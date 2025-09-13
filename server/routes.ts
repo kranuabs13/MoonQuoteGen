@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 
 // Schema for saving quotes with BOM and cost items
 const saveQuoteSchema = z.object({
@@ -156,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF generation endpoint using Playwright
+  // PDF generation endpoint using Puppeteer
   app.get("/api/export/pdf/:jobId", async (req, res) => {
     try {
       const { jobId } = req.params;
@@ -167,23 +167,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Export job not found or expired' });
       }
       
-      console.log('Generating PDF with Playwright for job:', jobId);
+      console.log('Generating PDF with Puppeteer for job:', jobId);
       
       // Build base URL for the print route
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const printUrl = `${baseUrl}/print?jobId=${jobId}`;
       
-      // Set environment variable to skip dependency validation
-      process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = 'true';
-      
-      // Launch Playwright
-      const browser = await chromium.launch({
+      // Launch Puppeteer with Replit-friendly options
+      const browser = await puppeteer.launch({
         headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor'
         ]
       });
       
@@ -191,11 +190,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Set print media emulation before navigation
-        await page.emulateMedia({ media: 'print' });
+        await page.emulateMediaType('print');
         
         // Navigate to print route with quote data
         await page.goto(printUrl, { 
-          waitUntil: 'networkidle',
+          waitUntil: 'networkidle0',
           timeout: 30000
         });
         
@@ -205,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Additional wait for layout stabilization
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Generate PDF with exact preview settings
         const pdfBuffer = await page.pdf({
@@ -216,11 +215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             right: '0mm', 
             bottom: '0mm',
             left: '0mm'
-          },
-          preferCSSPageSize: true
+          }
         });
         
-        console.log('PDF generated successfully with Playwright, size:', pdfBuffer.length, 'bytes');
+        console.log('PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
         
         // Generate filename
         const subject = job.quoteData.quote?.subject || job.quoteData.quoteSubject || 'quote';
