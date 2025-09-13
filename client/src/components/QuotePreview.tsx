@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Maximize2, Download } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
@@ -64,6 +64,7 @@ export default function QuotePreview({
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -156,6 +157,31 @@ export default function QuotePreview({
     }
   };
 
+  // Calculate total pages and page mapping
+  const pages = [
+    { id: 1, name: 'Cover', visible: true },
+    { id: 2, name: 'Intro', visible: true },
+    { id: 3, name: 'BOM & Costs', visible: bomEnabled || costsEnabled },
+    { id: 4, name: 'Payment Terms', visible: true },
+    { id: 5, name: 'IP & Contact', visible: true }
+  ].filter(page => page.visible);
+
+  const totalPages = pages.length;
+  
+  // Ensure currentPage is within bounds
+  const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+  if (validCurrentPage !== currentPage) {
+    setCurrentPage(validCurrentPage);
+  }
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
 
   return (
     <Card className={`h-full ${isFullscreen ? 'fixed inset-0 z-50' : ''}`} data-testid="card-quote-preview">
@@ -184,6 +210,31 @@ export default function QuotePreview({
               data-testid="button-zoom-in"
             >
               <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Page Navigation */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePreviousPage}
+              disabled={currentPage <= 1}
+              data-testid="button-previous-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[80px] text-center" data-testid="text-page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNextPage}
+              disabled={currentPage >= totalPages}
+              data-testid="button-next-page"
+            >
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
           
@@ -226,297 +277,308 @@ export default function QuotePreview({
             }}
             data-testid="preview-document"
           >
-            {/* Page 1 - Cover Page with Border Frame */}
-            <div 
-              className="relative h-[297mm] p-0 overflow-hidden bg-white page-break-before"
-              style={{
-                backgroundImage: `url(${frameImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-              }}
-            >
-
-              {/* EMET Dorcom Logo - Top Center, Large */}
-              <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
-                <img 
-                  src={emetLogo} 
-                  alt="EMET Dorcom" 
-                  className="h-24 w-auto"
-                  data-testid="emet-logo-page1"
-                  style={{ imageRendering: 'crisp-edges', maxWidth: 'none' }}
-                  crossOrigin="anonymous"
-                />
-              </div>
-
-              {/* Cover Page Content */}
-              <div className="relative h-full flex flex-col justify-center items-center text-center px-16">
-                <div 
-                  className="cursor-pointer hover:bg-white/10 p-4 rounded transition-colors w-full"
-                  onClick={() => onSectionClick?.('header')}
-                  data-testid="preview-header"
-                >
-                  <h1 className="text-4xl font-bold text-black mb-4">Quotation For</h1>
-                  <h2 className="text-3xl text-black mb-2 leading-tight">
-                    {quoteSubject || 'Cisco Catalyst Switch'}
-                  </h2>
-                  
-                  {/* Customer Logo */}
-                  {customerLogo && (
-                    <div className="mt-12 mb-12">
-                      <img 
-                        src={customerLogo} 
-                        alt="Customer logo" 
-                        className="h-20 w-auto mx-auto"
-                        data-testid="preview-customer-logo"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom Info */}
-                <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-center text-lg text-black">
-                  <div>{salesPersonName || 'David Gilboa'} | {formatDate(date)} | Ver {version || '1'}</div>
-                </div>
-
-                {/* Page Number */}
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-black text-lg font-bold">
-                  1
-                </div>
-              </div>
-            </div>
-
-            {/* Page 2 - Intro & Technology Diagram */}
-            <div className="bg-white h-[297mm] p-0 page-break-before relative">
-              {/* EMET Dorcom Logo - Top Left */}
-              <div className="absolute top-6 left-6">
-                <img 
-                  src={emetLogo} 
-                  alt="EMET Dorcom" 
-                  className="h-12 w-auto"
-                  data-testid="emet-logo-page2"
-                />
-              </div>
-
-              <div className="pt-20 px-12 pb-12">
-                {/* Intro Section */}
-                <div className="mb-12">
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Intro</h3>
-                  <div className="text-base leading-relaxed space-y-4 text-gray-800">
-                    <p>
-                      EMET Dorcom is one of the most successful and experienced companies in the field of
-                      computer infrastructure and integration with extensive knowledge, which includes all types of
-                      technologies in the IT market.
-                    </p>
-                    <p>
-                      We provide comprehensive and complete solutions through the entire process and
-                      accompanies our customers in all stages, starting from the stage of needs analysis,
-                      planning the systems to the stages of assimilation, integration, and ongoing
-                      maintenance of the systems.
-                    </p>
-                    <p>Dorcom's portfolio of solutions is extensive and enables the provision of a complete and diverse solution:</p>
-                    <ul className="list-disc ml-8 space-y-2 text-base">
-                      <li>Server and Storage</li>
-                      <li>Backup and replication</li>
-                      <li>Mobile and Workstation computing</li>
-                      <li>Software and operating system</li>
-                      <li>Networking - Switches and Wireless</li>
-                      <li>Cybersecurity L2-L7</li>
-                    </ul>
-                    <p>
-                      Throughout every technological solution supplied by Dorcom, our commitment to
-                      professionalism is unwavering. We are proud to have partnerships with several the
-                      world's leading IT manufacturers, including: HPE, HPI, DELL, NetApp, VERITAS,
-                      Commvault, Veeam, Nutanix, Redhat, Aruba, Juniper, Fortinet, Cloudem.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Technology Solutions Diagram */}
-                <div className="mb-8">
-                  <img 
-                    src={techDiagram} 
-                    alt="Technology Solutions" 
-                    className="w-full max-w-4xl mx-auto"
-                    data-testid="tech-diagram"
-                  />
-                </div>
-              </div>
-
-              {/* Page Number */}
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                2
-              </div>
-            </div>
-
-            {/* Page 3 - Combined BOM & Costs Section */}
-            {(bomEnabled || costsEnabled) && (
-              <div className="bg-white h-[297mm] p-0 page-break-before relative">
-                {/* EMET Dorcom Logo - Top Left */}
-                <div className="absolute top-6 left-6">
-                  <img 
-                    src={emetLogo} 
-                    alt="EMET Dorcom" 
-                    className="h-10 w-auto"
-                    data-testid="emet-logo-page3"
-                  />
-                </div>
-
-                <div className="pt-20 px-12 pb-12">
-                  {/* BOM Section */}
-                  {bomEnabled && (
+            {/* Render current page based on page state */}
+            {(() => {
+              const pageToRender = pages[currentPage - 1];
+              
+              switch (pageToRender?.id) {
+                case 1: // Cover Page
+                  return (
                     <div 
-                      className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-8"
-                      onClick={() => onSectionClick?.('bom')}
-                      data-testid="preview-bom"
+                      className="relative h-[297mm] p-0 overflow-hidden bg-white"
+                      style={{
+                        backgroundImage: `url(${frameImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
                     >
-                      <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
-                      <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
-                      
-                      {bomItems.length > 0 ? (
-                        <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
-                          <thead>
-                            <tr className="border-b-2 border-gray-400">
-                              {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>NO</th>}
-                              {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>PN</th>}
-                              {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>}
-                              {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>}
-                              {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
-                              {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {bomItems.map((item, index) => (
-                              <tr key={index} className="border-b border-gray-200">
-                                {columnVisibility.no && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.no}</td>}
-                                {columnVisibility.partNumber && <td className="p-2 font-medium border-r border-gray-200 whitespace-nowrap">{item.partNumber}</td>}
-                                {columnVisibility.productDescription && <td className="p-2 border-r border-gray-200">{item.productDescription}</td>}
-                                {columnVisibility.qty && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.quantity}</td>}
-                                {columnVisibility.unitPrice && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
-                                {columnVisibility.totalPrice && <td className="p-2 whitespace-nowrap">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
-                      )}
-                    </div>
-                  )}
+                      {/* EMET Dorcom Logo - Top Center, Large */}
+                      <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
+                        <img 
+                          src={emetLogo} 
+                          alt="EMET Dorcom" 
+                          className="h-24 w-auto"
+                          data-testid="emet-logo-page1"
+                          style={{ imageRendering: 'crisp-edges', maxWidth: 'none' }}
+                          crossOrigin="anonymous"
+                        />
+                      </div>
 
-                  {/* Costs Section */}
-                  {costsEnabled && (
-                    <div 
-                      className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
-                      onClick={() => onSectionClick?.('costs')}
-                      data-testid="preview-costs"
-                    >
-                      <h3 className="text-2xl font-bold mb-4 text-gray-900">Costs</h3>
-                      
-                      {costItems.length > 0 ? (
-                        <div>
-                          <table className="w-full border-collapse text-sm mb-6 border border-gray-300">
-                            <thead>
-                              <tr className="border-b-2 border-gray-400">
-                                <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
-                                <th className="text-center p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>
-                                <th className="text-right p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>
-                                <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {costItems.map((item, index) => (
-                                <tr key={index} className="border-b border-gray-200">
-                                  <td className="p-3 border-r border-gray-200">{item.productDescription}</td>
-                                  <td className="p-3 text-center border-r border-gray-200">{item.quantity}</td>
-                                  <td className="p-3 text-right border-r border-gray-200">{formatCurrency(item.unitPrice)}</td>
-                                  <td className="p-3 text-right font-medium">
-                                    {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      {/* Cover Page Content */}
+                      <div className="relative h-full flex flex-col justify-center items-center text-center px-16">
+                        <div 
+                          className="cursor-pointer hover:bg-white/10 p-4 rounded transition-colors w-full"
+                          onClick={() => onSectionClick?.('header')}
+                          data-testid="preview-header"
+                        >
+                          <h1 className="text-4xl font-bold text-black mb-4">Quotation For</h1>
+                          <h2 className="text-3xl text-black mb-2 leading-tight">
+                            {quoteSubject || 'Cisco Catalyst Switch'}
+                          </h2>
                           
-                          <div className="text-right border-t-2 border-gray-400 pt-4">
-                            <div className="text-xl font-bold">
-                              Grand Total: {formatCurrency(grandTotal)}
+                          {/* Customer Logo */}
+                          {customerLogo && (
+                            <div className="mt-12 mb-12">
+                              <img 
+                                src={customerLogo} 
+                                alt="Customer logo" 
+                                className="h-20 w-auto mx-auto"
+                                data-testid="preview-customer-logo"
+                              />
                             </div>
+                          )}
+                        </div>
+
+                        {/* Bottom Info */}
+                        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-center text-lg text-black">
+                          <div>{salesPersonName || 'David Gilboa'} | {formatDate(date)} | Ver {version || '1'}</div>
+                        </div>
+
+                        {/* Page Number */}
+                        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-black text-lg font-bold">
+                          {currentPage}
+                        </div>
+                      </div>
+                    </div>
+                  );
+
+                case 2: // Intro Page
+                  return (
+                    <div className="bg-white h-[297mm] p-0 relative">
+                      {/* EMET Dorcom Logo - Top Left */}
+                      <div className="absolute top-6 left-6">
+                        <img 
+                          src={emetLogo} 
+                          alt="EMET Dorcom" 
+                          className="h-12 w-auto"
+                          data-testid="emet-logo-page2"
+                        />
+                      </div>
+
+                      <div className="pt-20 px-12 pb-12">
+                        {/* Intro Section */}
+                        <div className="mb-12">
+                          <h3 className="text-2xl font-bold mb-6 text-gray-900">Intro</h3>
+                          <div className="text-base leading-relaxed space-y-4 text-gray-800">
+                            <p>
+                              EMET Dorcom is one of the most successful and experienced companies in the field of
+                              computer infrastructure and integration with extensive knowledge, which includes all types of
+                              technologies in the IT market.
+                            </p>
+                            <p>
+                              We provide comprehensive and complete solutions through the entire process and
+                              accompanies our customers in all stages, starting from the stage of needs analysis,
+                              planning the systems to the stages of assimilation, integration, and ongoing
+                              maintenance of the systems.
+                            </p>
+                            <p>Dorcom's portfolio of solutions is extensive and enables the provision of a complete and diverse solution:</p>
+                            <ul className="list-disc ml-8 space-y-2 text-base">
+                              <li>Server and Storage</li>
+                              <li>Backup and replication</li>
+                              <li>Mobile and Workstation computing</li>
+                              <li>Software and operating system</li>
+                              <li>Networking - Switches and Wireless</li>
+                              <li>Cybersecurity L2-L7</li>
+                            </ul>
+                            <p>
+                              Throughout every technological solution supplied by Dorcom, our commitment to
+                              professionalism is unwavering. We are proud to have partnerships with several the
+                              world's leading IT manufacturers, including: HPE, HPI, DELL, NetApp, VERITAS,
+                              Commvault, Veeam, Nutanix, Redhat, Aruba, Juniper, Fortinet, Cloudem.
+                            </p>
                           </div>
                         </div>
-                      ) : (
-                        <p className="text-gray-500 italic text-center py-6">No cost items added yet</p>
-                      )}
+
+                        {/* Technology Solutions Diagram */}
+                        <div className="mb-8">
+                          <img 
+                            src={techDiagram} 
+                            alt="Technology Solutions" 
+                            className="w-full max-w-4xl mx-auto"
+                            data-testid="tech-diagram"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Page Number */}
+                      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
+                        {currentPage}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
 
-                {/* Page Number */}
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                  3
-                </div>
-              </div>
-            )}
+                case 3: // BOM & Costs Page
+                  return (
+                    <div className="bg-white h-[297mm] p-0 relative">
+                      {/* EMET Dorcom Logo - Top Left */}
+                      <div className="absolute top-6 left-6">
+                        <img 
+                          src={emetLogo} 
+                          alt="EMET Dorcom" 
+                          className="h-10 w-auto"
+                          data-testid="emet-logo-page3"
+                        />
+                      </div>
 
-            {/* Page 4 - Payment Terms */}
-            <div className="bg-white h-[297mm] p-0 page-break-before relative">
-              {/* EMET Dorcom Logo - Top Left */}
-              <div className="absolute top-6 left-6">
-                <img 
-                  src={emetLogo} 
-                  alt="EMET Dorcom" 
-                  className="h-10 w-auto"
-                  data-testid="emet-logo-page4"
-                />
-              </div>
+                      <div className="pt-20 px-12 pb-12">
+                        {/* BOM Section */}
+                        {bomEnabled && (
+                          <div 
+                            className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors mb-8"
+                            onClick={() => onSectionClick?.('bom')}
+                            data-testid="preview-bom"
+                          >
+                            <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
+                            <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
+                            
+                            {bomItems.length > 0 ? (
+                              <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
+                                <thead>
+                                  <tr className="border-b-2 border-gray-400">
+                                    {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>NO</th>}
+                                    {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>PN</th>}
+                                    {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>}
+                                    {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>}
+                                    {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
+                                    {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {bomItems.map((item, index) => (
+                                    <tr key={index} className="border-b border-gray-200">
+                                      {columnVisibility.no && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.no}</td>}
+                                      {columnVisibility.partNumber && <td className="p-2 font-medium border-r border-gray-200 whitespace-nowrap">{item.partNumber}</td>}
+                                      {columnVisibility.productDescription && <td className="p-2 border-r border-gray-200">{item.productDescription}</td>}
+                                      {columnVisibility.qty && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.quantity}</td>}
+                                      {columnVisibility.unitPrice && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
+                                      {columnVisibility.totalPrice && <td className="p-2 whitespace-nowrap">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
+                            )}
+                          </div>
+                        )}
 
-              <div className="pt-20 px-12 pb-12">
-                {/* Payment Terms */}
-                <div className="mb-12">
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Payment & General terms</h3>
-                  <ol className="text-base space-y-3 list-decimal ml-6 leading-relaxed">
-                    <li>Prices are not including VAT</li>
-                    <li>Installation is not included unless specifically stated in the quote.</li>
-                    <li>Payment in NIS will be at the dollar exchange rate represented on the day of the invoice issuance.</li>
-                    <li>Our offer is valid for a period of 14 days.</li>
-                    <li>The total price is for the purchase of the entire proposal</li>
-                    <li>Payment Terms - {paymentTerms || 'Current +30'}</li>
-                    <li>Any delay in payment will result in the customer being charged an exceptional shekel-based interest or conversion to dollars according to the calculation that will produce the highest result.</li>
-                    <li>The contents will be delivered to the customer on the condition that the exchange for it will be fully paid according to the terms of the transaction. Any rights not acquired by the customer, at any time that the full exchange has not been received by Dorcom Computers Ltd., and has not been fully waived. Dorcom Computers Ltd. reserves the right to immediately return the endorsement in the contents, if the customer does not meet the full terms and schedule of the transaction, or to credit any amount received from the customer as partial payment towards the items of the order. All of this according to its sole choice and discretion.</li>
-                    <li>Subject to the general terms <a href="https://dorcom.co.il/%d7%aa%d7%a0%d7%90%d7%99-%d7%9e%d7%9b%d7%a8/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">here</a></li>
-                  </ol>
-                  
-                  <div className="mt-12 space-y-4 text-base">
-                    <div className="border-b border-gray-400 pb-2">Name | ___________</div>
-                    <div className="border-b border-gray-400 pb-2">Date | ___________</div>
-                    <div className="border-b border-gray-400 pb-2">Company + Signature | ___________</div>
-                  </div>
-                </div>
-              </div>
+                        {/* Costs Section */}
+                        {costsEnabled && (
+                          <div 
+                            className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                            onClick={() => onSectionClick?.('costs')}
+                            data-testid="preview-costs"
+                          >
+                            <h3 className="text-2xl font-bold mb-4 text-gray-900">Costs</h3>
+                            
+                            {costItems.length > 0 ? (
+                              <div>
+                                <table className="w-full border-collapse text-sm mb-6 border border-gray-300">
+                                  <thead>
+                                    <tr className="border-b-2 border-gray-400">
+                                      <th className="text-left p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>
+                                      <th className="text-center p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>
+                                      <th className="text-right p-3 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>
+                                      <th className="text-right p-3 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {costItems.map((item, index) => (
+                                      <tr key={index} className="border-b border-gray-200">
+                                        <td className="p-3 border-r border-gray-200">{item.productDescription}</td>
+                                        <td className="p-3 text-center border-r border-gray-200">{item.quantity}</td>
+                                        <td className="p-3 text-right border-r border-gray-200">{formatCurrency(item.unitPrice)}</td>
+                                        <td className="p-3 text-right font-medium">
+                                          {item.isDiscount ? '-' : ''}{formatCurrency(item.totalPrice)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                
+                                <div className="text-right border-t-2 border-gray-400 pt-4">
+                                  <div className="text-xl font-bold">
+                                    Grand Total: {formatCurrency(grandTotal)}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 italic text-center py-6">No cost items added yet</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
-              {/* Page Number */}
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                4
-              </div>
-            </div>
+                      {/* Page Number */}
+                      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
+                        {currentPage}
+                      </div>
+                    </div>
+                  );
 
-            {/* Page 5 - IP Section */}
-            <div className="bg-white h-[297mm] p-0 page-break-before relative">
-              {/* EMET Dorcom Logo - Top Left */}
-              <div className="absolute top-6 left-6">
-                <img 
-                  src={emetLogo} 
-                  alt="EMET Dorcom" 
-                  className="h-10 w-auto"
-                  data-testid="emet-logo-page5"
-                />
-              </div>
+                case 4: // Payment Terms Page
+                  return (
+                    <div className="bg-white h-[297mm] p-0 relative">
+                      {/* EMET Dorcom Logo - Top Left */}
+                      <div className="absolute top-6 left-6">
+                        <img 
+                          src={emetLogo} 
+                          alt="EMET Dorcom" 
+                          className="h-10 w-auto"
+                          data-testid="emet-logo-page4"
+                        />
+                      </div>
 
-              <div className="pt-20 px-12 pb-12">
-                {/* IP Section */}
-                <div className="mb-12">
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Intellectual property</h3>
-                  <div className="text-sm leading-relaxed space-y-4">
+                      <div className="pt-20 px-12 pb-12">
+                        {/* Payment Terms */}
+                        <div className="mb-12">
+                          <h3 className="text-2xl font-bold mb-6 text-gray-900">Payment & General terms</h3>
+                          <ol className="text-base space-y-3 list-decimal ml-6 leading-relaxed">
+                            <li>Prices are not including VAT</li>
+                            <li>Installation is not included unless specifically stated in the quote.</li>
+                            <li>Payment in NIS will be at the dollar exchange rate represented on the day of the invoice issuance.</li>
+                            <li>Our offer is valid for a period of 14 days.</li>
+                            <li>The total price is for the purchase of the entire proposal</li>
+                            <li>Payment Terms - {paymentTerms || 'Current +30'}</li>
+                            <li>Any delay in payment will result in the customer being charged an exceptional shekel-based interest or conversion to dollars according to the calculation that will produce the highest result.</li>
+                            <li>The contents will be delivered to the customer on the condition that the exchange for it will be fully paid according to the terms of the transaction. Any rights not acquired by the customer, at any time that the full exchange has not been received by Dorcom Computers Ltd., and has not been fully waived. Dorcom Computers Ltd. reserves the right to immediately return the endorsement in the contents, if the customer does not meet the full terms and schedule of the transaction, or to credit any amount received from the customer as partial payment towards the items of the order. All of this according to its sole choice and discretion.</li>
+                            <li>Subject to the general terms <a href="https://dorcom.co.il/%d7%aa%d7%a0%d7%90%d7%99-%d7%9e%d7%9b%d7%a8/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">here</a></li>
+                          </ol>
+                          
+                          <div className="mt-12 space-y-4 text-base">
+                            <div className="border-b border-gray-400 pb-2">Name | ___________</div>
+                            <div className="border-b border-gray-400 pb-2">Date | ___________</div>
+                            <div className="border-b border-gray-400 pb-2">Company + Signature | ___________</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Page Number */}
+                      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
+                        {currentPage}
+                      </div>
+                    </div>
+                  );
+
+                case 5: // IP & Contact Page
+                  return (
+                    <div className="bg-white h-[297mm] p-0 relative">
+                      {/* EMET Dorcom Logo - Top Left */}
+                      <div className="absolute top-6 left-6">
+                        <img 
+                          src={emetLogo} 
+                          alt="EMET Dorcom" 
+                          className="h-10 w-auto"
+                          data-testid="emet-logo-page5"
+                        />
+                      </div>
+
+                      <div className="pt-20 px-12 pb-12">
+                        {/* IP Section */}
+                        <div className="mb-12">
+                          <h3 className="text-2xl font-bold mb-6 text-gray-900">Intellectual property</h3>
+                          <div className="text-sm leading-relaxed space-y-4 text-gray-700">
                     <p>
                       All rights, ownership and intellectual property rights (including, but not limited to, copyrights,
                       professional knowledge and trade secrets) in the information contained in this document or any
@@ -573,11 +635,17 @@ export default function QuotePreview({
                 </div>
               </div>
 
-              {/* Page Number */}
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
-                5
-              </div>
-            </div>
+                      {/* Page Number */}
+                      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gray-500 text-lg font-bold">
+                        {currentPage}
+                      </div>
+                    </div>
+                  );
+
+                default:
+                  return null;
+              }
+            })()}
           </div>
         </div>
       </CardContent>
