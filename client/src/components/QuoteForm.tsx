@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileSpreadsheet, Save, FolderOpen, FileText, Plus, Trash2 } from "lucide-react";
+import { Download, FileSpreadsheet, Save, FolderOpen, FileText, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import ExcelUpload from "./ExcelUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -98,6 +98,22 @@ export default function QuoteForm() {
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  
+  // Section collapse states
+  const [sectionsCollapsed, setSectionsCollapsed] = useState({
+    excelTemplates: true, // Start minimized as requested
+    quoteHeader: false,
+    bomSection: false,
+    costSection: false
+  });
+
+  // Helper function to toggle section collapse
+  const toggleSection = (sectionKey: keyof typeof sectionsCollapsed) => {
+    setSectionsCollapsed(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -424,6 +440,77 @@ export default function QuoteForm() {
 
   const inputPanel = (
     <div className="space-y-6" data-testid="input-form">
+      {/* Excel Templates - Now FIRST and Collapsible */}
+      <Card data-testid="card-excel-templates">
+        <CardHeader 
+          className="cursor-pointer hover-elevate" 
+          onClick={() => toggleSection('excelTemplates')}
+        >
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Excel Templates
+            </div>
+            {sectionsCollapsed.excelTemplates ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronUp className="h-4 w-4" />
+            )}
+          </CardTitle>
+        </CardHeader>
+        {!sectionsCollapsed.excelTemplates && (
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Download Excel templates to fill out your quote data offline, then upload to auto-populate the form.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  downloadExcelTemplate('complete-quote-template.xlsx', {
+                    includeQuoteInfo: true,
+                    includeBomItems: formData.bomEnabled,
+                    includeCostItems: formData.costsEnabled,
+                    columnVisibility: formData.columnVisibility
+                  });
+                }}
+                data-testid="button-download-complete-template"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Complete Template
+              </Button>
+              {formData.bomEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    downloadBomOnlyTemplate('bom-template.xlsx', formData.columnVisibility);
+                  }}
+                  data-testid="button-download-bom-template"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  BOM Only
+                </Button>
+              )}
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-2">Upload Filled Template</h4>
+              <ExcelUpload
+                onDataParsed={handleExcelDataParsed}
+                onError={handleExcelError}
+                parseOptions={{
+                  validateData: true,
+                  allowPartialData: true
+                }}
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Quote Header - Now SECOND */}
       <QuoteHeader
         quoteSubject={formData.quoteSubject}
         customerCompany={formData.customerCompany}
@@ -468,63 +555,6 @@ export default function QuoteForm() {
           setFormData(prev => ({ ...prev, contactInfo }))
         }
       />
-
-      <Card data-testid="card-excel-templates">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            Excel Templates
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Download Excel templates to fill out your quote data offline, then upload to auto-populate the form.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                downloadExcelTemplate('complete-quote-template.xlsx', {
-                  includeQuoteInfo: true,
-                  includeBomItems: formData.bomEnabled,
-                  includeCostItems: formData.costsEnabled,
-                  columnVisibility: formData.columnVisibility
-                });
-              }}
-              data-testid="button-download-complete-template"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Complete Template
-            </Button>
-            {formData.bomEnabled && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  downloadBomOnlyTemplate('bom-template.xlsx', formData.columnVisibility);
-                }}
-                data-testid="button-download-bom-template"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                BOM Only
-              </Button>
-            )}
-          </div>
-
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-2">Upload Filled Template</h4>
-            <ExcelUpload
-              onDataParsed={handleExcelDataParsed}
-              onError={handleExcelError}
-              parseOptions={{
-                validateData: true,
-                allowPartialData: true
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       {formData.bomEnabled && (
         <BomSection
