@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { QuoteFormData, ColumnVisibility } from '@shared/schema';
+import type { QuoteFormData, ColumnVisibility, BomItem, CostItem } from '@shared/schema';
 
 export interface ParsedExcelData {
   quoteInfo?: Partial<QuoteFormData>;
@@ -7,7 +7,7 @@ export interface ParsedExcelData {
     no: number;
     partNumber: string;
     productDescription: string;
-    quantity: number;
+    quantity: number; // This matches the database schema and BomItem type
     unitPrice?: number;
     totalPrice?: number;
   }>;
@@ -166,7 +166,7 @@ function parseBomItemsSheet(
   sheet: XLSX.WorkSheet,
   result: ParsedExcelData,
   validateData: boolean
-): Array<any> {
+): Array<NonNullable<ParsedExcelData['bomItems']>[number]> {
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
   const items: Array<any> = [];
 
@@ -227,7 +227,7 @@ function parseCostItemsSheet(
   sheet: XLSX.WorkSheet,
   result: ParsedExcelData,
   validateData: boolean
-): Array<any> {
+): Array<NonNullable<ParsedExcelData['costItems']>[number]> {
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
   const items: Array<any> = [];
 
@@ -401,6 +401,19 @@ function parseCostRow(
 function parseNumber(value: any): number | undefined {
   if (value === null || value === undefined || value === '') return undefined;
   
+  // Handle string values that might contain currency symbols, commas, etc.
+  if (typeof value === 'string') {
+    // Remove common currency symbols, commas, and spaces
+    const cleaned = value.replace(/[$€£¥,\s]/g, '');
+    
+    // Handle empty string after cleaning
+    if (cleaned === '') return undefined;
+    
+    const num = Number(cleaned);
+    return isNaN(num) ? undefined : num;
+  }
+  
+  // Handle numeric values directly
   const num = Number(value);
   return isNaN(num) ? undefined : num;
 }
