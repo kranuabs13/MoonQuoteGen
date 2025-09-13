@@ -2,6 +2,14 @@ import { users, quotes, bomItems, costItems, type User, type InsertUser, type Qu
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
+// Export job storage interface
+interface ExportJob {
+  id: string;
+  quoteData: any;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
 // modify the interface with any CRUD methods
 // you might need
 
@@ -24,9 +32,24 @@ export interface IStorage {
     bomItems: Array<Omit<InsertBomItem, 'quoteId'>>,
     costItems: Array<Omit<InsertCostItem, 'quoteId'>>
   }): Promise<QuoteData | undefined>;
+  
+  // Export job operations
+  createExportJob(quoteData: any): Promise<ExportJob>;
+  getExportJob(id: string): Promise<ExportJob | undefined>;
+  deleteExportJob(id: string): Promise<boolean>;
+  cleanupExpiredJobs(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  // In-memory storage for export jobs (temporary, auto-cleanup)
+  private exportJobs = new Map<string, ExportJob>();
+
+  constructor() {
+    // Cleanup expired jobs every 5 minutes
+    setInterval(() => {
+      this.cleanupExpiredJobs();
+    }, 5 * 60 * 1000);
+  }
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -185,6 +208,49 @@ export class DatabaseStorage implements IStorage {
         costItems: createdCostItems,
       };
     });
+  }
+
+  // Export job operations (in-memory)
+  async createExportJob(quoteData: any): Promise<ExportJob> {
+    const id = crypto.randomUUID();
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000); // 10 minutes
+    
+    const job: ExportJob = {
+      id,
+      quoteData,
+      createdAt,
+      expiresAt
+    };
+    
+    this.exportJobs.set(id, job);
+    return job;
+  }
+
+  async getExportJob(id: string): Promise<ExportJob | undefined> {
+    const job = this.exportJobs.get(id);
+    if (!job) return undefined;
+    
+    // Check if expired
+    if (new Date() > job.expiresAt) {
+      this.exportJobs.delete(id);
+      return undefined;
+    }
+    
+    return job;
+  }
+
+  async deleteExportJob(id: string): Promise<boolean> {
+    return this.exportJobs.delete(id);
+  }
+
+  async cleanupExpiredJobs(): Promise<void> {
+    const now = new Date();
+    for (const [id, job] of this.exportJobs.entries()) {
+      if (now > job.expiresAt) {
+        this.exportJobs.delete(id);
+      }
+    }
   }
 }
 
