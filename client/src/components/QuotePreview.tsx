@@ -68,7 +68,8 @@ export default function QuotePreview({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const previewRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wheelAccumRef = useRef(0);
+  const lastFlipRef = useRef(0);
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -183,26 +184,42 @@ export default function QuotePreview({
     }
   };
 
-  // Handle scroll between pages
+  // Handle scroll between pages with smooth accumulated-delta approach
   useEffect(() => {
+    const SCROLL_THRESHOLD = 150; // Threshold for page flip
+    const COOLDOWN_MS = 300; // Minimum time between page flips
+    
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
+      const now = Date.now();
       
-      // Clear existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      // Check cooldown period
+      if (now - lastFlipRef.current < COOLDOWN_MS) {
+        return;
       }
       
-      // Debounce scroll events
-      scrollTimeoutRef.current = setTimeout(() => {
-        if (e.deltaY > 0) {
-          // Scroll down - go to next page
-          setCurrentPage(prev => Math.min(prev + 1, totalPages));
-        } else if (e.deltaY < 0) {
-          // Scroll up - go to previous page
-          setCurrentPage(prev => Math.max(prev - 1, 1));
-        }
-      }, 100);
+      // Accumulate scroll delta
+      wheelAccumRef.current += e.deltaY;
+      
+      // Check if we should flip pages
+      if (wheelAccumRef.current > SCROLL_THRESHOLD && currentPage < totalPages) {
+        // Prevent default only when actually flipping
+        e.preventDefault();
+        setCurrentPage(prev => prev + 1);
+        wheelAccumRef.current = 0;
+        lastFlipRef.current = now;
+      } else if (wheelAccumRef.current < -SCROLL_THRESHOLD && currentPage > 1) {
+        // Prevent default only when actually flipping
+        e.preventDefault();
+        setCurrentPage(prev => prev - 1);
+        wheelAccumRef.current = 0;
+        lastFlipRef.current = now;
+      }
+      
+      // Reset accumulator if at boundaries
+      if ((currentPage >= totalPages && wheelAccumRef.current > 0) ||
+          (currentPage <= 1 && wheelAccumRef.current < 0)) {
+        wheelAccumRef.current = 0;
+      }
     };
 
     const previewElement = previewRef.current;
@@ -211,18 +228,18 @@ export default function QuotePreview({
       
       return () => {
         previewElement.removeEventListener('wheel', handleWheel);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
       };
     }
-  }, [totalPages]);
-  
-  // Ensure currentPage is within bounds
-  const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
-  if (validCurrentPage !== currentPage) {
-    setCurrentPage(validCurrentPage);
-  }
+  }, [currentPage, totalPages]);
+
+  // Handle bounds clamping in useEffect to avoid render-time state updates
+  useEffect(() => {
+    if (currentPage < 1) {
+      setCurrentPage(1);
+    } else if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handlePreviousPage = () => {
     setCurrentPage(prev => Math.max(1, prev - 1));
