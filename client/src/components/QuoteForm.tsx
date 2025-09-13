@@ -512,7 +512,7 @@ export default function QuoteForm() {
                 onClick={() => {
                   downloadExcelTemplate('complete-quote-template.xlsx', {
                     includeQuoteInfo: true,
-                    includeBomItems: formData.bomEnabled,
+                    includeBomItems: true,
                     includeCostItems: formData.costsEnabled,
                     columnVisibility: formData.columnVisibility
                   });

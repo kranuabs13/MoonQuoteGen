@@ -75,46 +75,59 @@ export function createExcelTemplate(options: ExcelTemplateOptions = {}): ArrayBu
     bomDescriptions.push('Price per unit (numbers only)');
     bomInstructions.push('1500.00');
 
-    // Create clean data template with separate instruction section
+    // Create improved template with clearly copyable sections
     const bomData = [
       // Instructions Section (clearly separated)
-      ['INSTRUCTIONS - Do NOT copy this section', '', '', ''],
+      ['📋 BOM TEMPLATE INSTRUCTIONS', '', '', ''],
       ['', '', '', ''],
-      ['HOW TO USE BOM TEMPLATE:', '', '', ''],
-      ['1. Select ONLY the data rows from a group below (do NOT include headers)', '', '', ''],
-      ['2. Copy the selected data (Ctrl+C)', '', '', ''],
-      ['3. In the app, click inside a BOM group table', '', '', ''],
-      ['4. Paste (Ctrl+V) - headers and invalid rows will be automatically filtered', '', '', ''],
-      ['5. Repeat for additional groups', '', '', ''],
+      ['HOW TO USE:', '', '', ''],
+      ['1. Scroll down to find the data groups below', '', '', ''],
+      ['2. Select the 3-4 data rows for one group (rectangular selection)', '', '', ''],
+      ['3. Copy with Ctrl+C', '', '', ''],
+      ['4. Go to your app and paste into a BOM group table', '', '', ''],
+      ['5. Repeat for additional groups as needed', '', '', ''],
       ['', '', '', ''],
-      ['COLUMN ORDER: Part Number | Product Description | QTY | Unit Price', '', '', ''],
-      ['NOTE: NO and Total Price columns are auto-calculated by the app', '', '', ''],
+      ['💡 TIP: You can copy multiple rows at once - the app will filter out headers automatically', '', '', ''],
+      ['📊 COLUMN ORDER: Part Number → Product Description → QTY → Unit Price', '', '', ''],
+      ['⚡ Auto-calculated: Item numbers (NO) and Total Prices are calculated automatically', '', '', ''],
       ['', '', '', ''],
+      ['', '', '', ''],
+      ['🔽 COPYABLE DATA SECTIONS BELOW 🔽', '', '', ''],
       ['', '', '', ''],
       
-      // Clean Data Groups (easy to select and copy)
-      ['GROUP 1: Network Switches', '', '', ''],
+      // Group 1: Clean, easy-to-select block
+      ['📦 GROUP 1: Network Infrastructure', '', '', ''],
+      ['Part Number', 'Product Description', 'QTY', 'Unit Price'],
       ['C9300-48P', 'Catalyst 9300 48-port PoE+ Switch', '1', '2500.00'],
       ['PWR-C1-715WAC', 'Power Supply 715W AC', '1', '400.00'],
       ['C9300-NM-8X', 'Network Module 8x10G', '1', '1200.00'],
       ['', '', '', ''],
       
-      ['GROUP 2: Cables & Accessories', '', '', ''],
+      // Group 2: Clean, easy-to-select block
+      ['📦 GROUP 2: Cables & Accessories', '', '', ''],
+      ['Part Number', 'Product Description', 'QTY', 'Unit Price'],
       ['CAB-C13-C14-2M', 'Power Cable 2M', '4', '25.00'],
       ['CAB-ETH-S-RJ45', 'Ethernet Cable 1M', '8', '15.00'],
       ['RACK-MOUNT-KIT', 'Rack Mount Kit', '1', '75.00'],
+      ['PATCH-PANEL-24', '24-Port Patch Panel', '2', '85.00'],
       ['', '', '', ''],
       
-      ['GROUP 3: Security Equipment', '', '', ''],
+      // Group 3: Clean, easy-to-select block
+      ['📦 GROUP 3: Security & Monitoring', '', '', ''],
+      ['Part Number', 'Product Description', 'QTY', 'Unit Price'],
       ['FIREWALL-60F', 'FortiGate 60F Firewall', '1', '800.00'],
       ['UPS-1500VA', 'UPS 1500VA Battery Backup', '2', '350.00'],
       ['SENSOR-ENV', 'Environmental Sensor', '4', '120.00'],
+      ['CAM-IP-4MP', '4MP IP Security Camera', '6', '180.00'],
       ['', '', '', ''],
       
-      ['GROUP 4: Sample Data (Mixed Prices)', '', '', ''],
+      // Group 4: Mixed pricing example
+      ['📦 GROUP 4: Mixed Pricing Example', '', '', ''],
+      ['Part Number', 'Product Description', 'QTY', 'Unit Price'],
       ['ITEM-001', 'Sample Item Without Price', '3', ''],
       ['ITEM-002', 'Sample Item With Price', '2', '199.99'],
-      ['ITEM-003', 'Another Sample Item', '1', '50.00'],
+      ['ITEM-003', 'License - Annual Subscription', '1', '50.00'],
+      ['ITEM-004', 'Installation Service', '1', '500.00'],
     ];
 
     const bomSheet = XLSX.utils.aoa_to_sheet(bomData);
