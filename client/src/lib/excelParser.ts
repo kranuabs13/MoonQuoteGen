@@ -189,8 +189,12 @@ function parseBomItemsSheet(
       const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
       console.log(`DEBUG: Row ${i}:`, row, '-> rowStr:', rowStr);
       
-      if (rowStr.includes('part number') || rowStr.includes('product description') || 
-          rowStr.includes('qty') || rowStr.includes('quantity')) {
+      // Check if this row has actual column headers (separate cells, not instruction text)
+      const hasPartNumber = row.some(cell => String(cell || '').toLowerCase().trim() === 'part number');
+      const hasProductDescription = row.some(cell => String(cell || '').toLowerCase().includes('product description') && String(cell || '').toLowerCase().trim().split(' ').length <= 3);
+      const hasQty = row.some(cell => String(cell || '').toLowerCase().trim() === 'qty' || String(cell || '').toLowerCase().trim() === 'quantity');
+      
+      if ((hasPartNumber || hasProductDescription) && hasQty) {
         headerRowIndex = i;
         headers.push(...row.map(cell => String(cell || '').trim()));
         console.log('DEBUG: Found headers at row', i, ':', headers);
