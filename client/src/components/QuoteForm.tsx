@@ -369,65 +369,61 @@ export default function QuoteForm() {
     console.log('Manual save triggered');
   };
 
+  // Quote Management Elements for Header
+  const quoteManagementElements = (
+    <>
+      <Button
+        onClick={handleSaveQuote}
+        disabled={saveQuoteMutation.isPending}
+        data-testid="button-save-quote"
+        size="sm"
+      >
+        <Save className="h-4 w-4 mr-2" />
+        {currentQuoteId ? 'Save' : 'Save Quote'}
+      </Button>
+      
+      <Button
+        variant="outline"
+        onClick={() => setIsSaveAsDialogOpen(true)}
+        disabled={saveQuoteMutation.isPending}
+        data-testid="button-save-as-quote"
+        size="sm"
+      >
+        <Save className="h-4 w-4 mr-2" />
+        Save As...
+      </Button>
+      
+      <Button
+        variant="outline"
+        onClick={() => setIsOpenDialogOpen(true)}
+        data-testid="button-open-quote"
+        size="sm"
+      >
+        <FolderOpen className="h-4 w-4 mr-2" />
+        Open
+      </Button>
+      
+      <Button
+        variant="outline"
+        onClick={handleNewQuote}
+        data-testid="button-new-quote"
+        size="sm"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        New
+      </Button>
+    </>
+  );
+
+  // Current Quote Badge for Header
+  const currentQuoteBadge = currentQuoteId ? (
+    <Badge variant="outline" data-testid="badge-current-quote">
+      {quoteName || formData.quoteSubject || 'Untitled Quote'}
+    </Badge>
+  ) : null;
+
   const inputPanel = (
     <div className="space-y-6" data-testid="input-form">
-      {/* Quote Management Section */}
-      <Card data-testid="card-quote-management">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Quote Management
-            </div>
-            {currentQuoteId && (
-              <Badge variant="outline" data-testid="badge-current-quote">
-                {quoteName || formData.quoteSubject || 'Untitled Quote'}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleSaveQuote}
-              disabled={saveQuoteMutation.isPending}
-              data-testid="button-save-quote"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {currentQuoteId ? 'Save' : 'Save Quote'}
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => setIsSaveAsDialogOpen(true)}
-              disabled={saveQuoteMutation.isPending}
-              data-testid="button-save-as-quote"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save As...
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => setIsOpenDialogOpen(true)}
-              data-testid="button-open-quote"
-            >
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Open Quote
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleNewQuote}
-              data-testid="button-new-quote"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Quote
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       <QuoteHeader
         quoteSubject={formData.quoteSubject}
         customerCompany={formData.customerCompany}
@@ -584,6 +580,8 @@ export default function QuoteForm() {
         inputPanel={inputPanel}
         previewPanel={previewPanel}
         onSave={handleSave}
+        quoteManagementElements={quoteManagementElements}
+        currentQuoteBadge={currentQuoteBadge}
       />
       
       {/* Save As Dialog */}

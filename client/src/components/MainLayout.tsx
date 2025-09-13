@@ -8,9 +8,11 @@ interface MainLayoutProps {
   inputPanel: React.ReactNode;
   previewPanel: React.ReactNode;
   onSave?: () => void;
+  quoteManagementElements?: React.ReactNode;
+  currentQuoteBadge?: React.ReactNode;
 }
 
-export default function MainLayout({ inputPanel, previewPanel, onSave }: MainLayoutProps) {
+export default function MainLayout({ inputPanel, previewPanel, onSave, quoteManagementElements, currentQuoteBadge }: MainLayoutProps) {
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { toast } = useToast();
@@ -74,18 +76,34 @@ export default function MainLayout({ inputPanel, previewPanel, onSave }: MainLay
             <div className="text-sm text-muted-foreground">
               EMET Dorcom Quote Generator
             </div>
+            {currentQuoteBadge && (
+              <div className="flex items-center">
+                {currentQuoteBadge}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSave}
-              data-testid="button-save-quote"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save
-            </Button>
+            {/* Quote Management Buttons */}
+            {quoteManagementElements && (
+              <div className="flex items-center space-x-2 mr-2">
+                {quoteManagementElements}
+              </div>
+            )}
+            
+            {/* Legacy Save Button - hidden when quote management is available */}
+            {!quoteManagementElements && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSave}
+                data-testid="button-save-quote"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            )}
+            
             <Button
               variant="ghost"
               size="icon"
