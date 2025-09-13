@@ -117,69 +117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export job creation endpoint
-  app.post("/api/export/start", async (req, res) => {
-    try {
-      const { quoteData } = req.body;
-      
-      if (!quoteData) {
-        return res.status(400).json({ error: 'Quote data is required' });
-      }
-      
-      // Create export job with expiration
-      const job = await storage.createExportJob(quoteData);
-      
-      res.json({ jobId: job.id });
-    } catch (error: unknown) {
-      console.error('Error creating export job:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: 'Failed to create export job: ' + errorMessage });
-    }
-  });
-
-  // Get export job data endpoint
-  app.get("/api/export/job/:jobId", async (req, res) => {
-    try {
-      const { jobId } = req.params;
-      
-      const job = await storage.getExportJob(jobId);
-      if (!job) {
-        return res.status(404).json({ error: 'Export job not found or expired' });
-      }
-      
-      res.json({ quoteData: job.quoteData });
-    } catch (error: unknown) {
-      console.error('Error getting export job:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: 'Failed to get export job: ' + errorMessage });
-    }
-  });
-
-  // PDF export endpoint - redirects to print page with auto-print
-  app.get("/api/export/pdf/:jobId", async (req, res) => {
-    try {
-      const { jobId } = req.params;
-      
-      // Verify export job exists
-      const job = await storage.getExportJob(jobId);
-      if (!job) {
-        return res.status(404).json({ error: 'Export job not found or expired' });
-      }
-      
-      console.log('Redirecting to client-side print for job:', jobId);
-      
-      // Use relative redirect to avoid protocol/host issues in proxy environments
-      const printUrl = `/print?jobId=${jobId}&auto=1`;
-      
-      // Redirect to print page which will auto-trigger print dialog
-      res.redirect(302, printUrl);
-      
-    } catch (error: unknown) {
-      console.error('Error redirecting to print page:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: 'Failed to initiate PDF export: ' + errorMessage });
-    }
-  });
 
   const httpServer = createServer(app);
 
