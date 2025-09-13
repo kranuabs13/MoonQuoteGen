@@ -173,6 +173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const printUrl = `${baseUrl}/print?jobId=${jobId}`;
       
+      // Set environment variable to skip dependency validation
+      process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = 'true';
+      
       // Launch Playwright
       const browser = await chromium.launch({
         headless: true,
