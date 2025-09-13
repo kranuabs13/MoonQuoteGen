@@ -5,6 +5,10 @@ import BomSection from "./BomSection";
 import CostSection from "./CostSection";
 import QuotePreview from "./QuotePreview";
 import MainLayout from "./MainLayout";
+import { downloadExcelTemplate, downloadBomOnlyTemplate } from "../lib/excelTemplate";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, FileSpreadsheet } from "lucide-react";
 import type { QuoteFormData, ColumnVisibility, ContactInfo } from "@shared/schema";
 
 // TODO: Remove mock functionality - this will be replaced with real data persistence
@@ -155,6 +159,51 @@ export default function QuoteForm() {
           setFormData(prev => ({ ...prev, contactInfo }))
         }
       />
+
+      <Card data-testid="card-excel-templates">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            Excel Templates
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Download Excel templates to fill out your quote data offline, then upload to auto-populate the form.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                downloadExcelTemplate('complete-quote-template.xlsx', {
+                  includeQuoteInfo: true,
+                  includeBomItems: formData.bomEnabled,
+                  includeCostItems: formData.costsEnabled,
+                  columnVisibility: formData.columnVisibility
+                });
+              }}
+              data-testid="button-download-complete-template"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Complete Template
+            </Button>
+            {formData.bomEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  downloadBomOnlyTemplate('bom-template.xlsx', formData.columnVisibility);
+                }}
+                data-testid="button-download-bom-template"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                BOM Only
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {formData.bomEnabled && (
         <BomSection
