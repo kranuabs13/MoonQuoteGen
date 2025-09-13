@@ -241,90 +241,24 @@ export default function PrintPage() {
   }
 
   return (
-    <div className="print-layout">
-      <style>{`
-        @page {
-          size: A4;
-          margin: 0;
-        }
-        
-        @media print {
-          * {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          .print-layout {
-            transform: none !important;
-            zoom: 1 !important;
-          }
-          
-          /* Hide print controls */
-          .print-controls {
-            display: none !important;
-          }
-        }
-        
-        .print-layout {
-          width: 100vw;
-          min-height: 100vh;
-          background: #f0f0f0;
-          margin: 0;
-          padding: 0;
-        }
-        
-        /* Override QuotePreview styles for print */
-        .quote-preview-print {
-          zoom: 1 !important;
-          transform: none !important;
-          width: 210mm !important;
-          margin: 0 auto;
-          background: white;
-        }
-        
-        @media screen {
-          .quote-preview-print {
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-          }
-        }
-        
-        @media print {
-          .quote-preview-print {
-            box-shadow: none !important;
-          }
-        }
-        
-        /* Hide interactive elements and controls */
-        .print-controls {
-          display: none !important;
-        }
-        
-        .hover\\:bg-blue-50,
-        .cursor-pointer {
-          pointer-events: none !important;
-        }
-      `}</style>
-      
-      <div className="quote-preview-print">
-        <QuotePreview
-          quoteSubject={quoteData.quoteSubject}
-          customerCompany={quoteData.customerCompany}
-          customerLogo={quoteData.customerLogo}
-          salesPersonName={quoteData.salesPersonName}
-          date={quoteData.date}
-          version={quoteData.version}
-          paymentTerms={quoteData.paymentTerms}
-          currency={quoteData.currency}
-          bomEnabled={quoteData.bomEnabled}
-          costsEnabled={quoteData.costsEnabled}
-          columnVisibility={quoteData.columnVisibility}
-          contactInfo={quoteData.contactInfo}
-          bomItems={quoteData.bomItems}
-          costItems={quoteData.costItems}
-          showControls={false}
-        />
-      </div>
+    <div className="print-document">
+      <QuotePreview
+        quoteSubject={quoteData.quoteSubject}
+        customerCompany={quoteData.customerCompany}
+        customerLogo={quoteData.customerLogo}
+        salesPersonName={quoteData.salesPersonName}
+        date={quoteData.date}
+        version={quoteData.version}
+        paymentTerms={quoteData.paymentTerms}
+        currency={quoteData.currency}
+        bomEnabled={quoteData.bomEnabled}
+        costsEnabled={quoteData.costsEnabled}
+        columnVisibility={quoteData.columnVisibility}
+        contactInfo={quoteData.contactInfo}
+        bomItems={quoteData.bomItems}
+        costItems={quoteData.costItems}
+        showControls={false}
+      />
       
       {/* Readiness indicator for debugging */}
       {isReady && (
