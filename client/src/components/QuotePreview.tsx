@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Download } from "lucide-react";
 import { useState } from "react";
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
@@ -63,6 +63,7 @@ export default function QuotePreview({
 }: QuotePreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -98,6 +99,61 @@ export default function QuotePreview({
       return Math.max(50, Math.min(150, newZoom));
     });
     console.log(`Zoom ${direction}: ${zoom}%`);
+  };
+
+  const handlePdfDownload = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const quoteData = {
+        quote: {
+          subject: quoteSubject,
+          customer: customerCompany,
+          salesPerson: salesPersonName,
+          terms: paymentTerms,
+          currency: currency
+        },
+        bomItems,
+        costItems,
+        columnVisibility,
+        bomEnabled,
+        costsEnabled,
+        date,
+        version,
+        contact: contactInfo,
+        customerLogo
+      };
+
+      const response = await fetch('/api/download-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quoteData })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status}`);
+      }
+
+      // Get the PDF as a blob
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quote-${quoteSubject || 'untitled'}-${date || new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
 
@@ -139,6 +195,16 @@ export default function QuotePreview({
               data-testid="button-fullscreen"
             >
               <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handlePdfDownload}
+              disabled={isGeneratingPdf}
+              data-testid="button-download-pdf"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
             </Button>
           </div>
         </div>
