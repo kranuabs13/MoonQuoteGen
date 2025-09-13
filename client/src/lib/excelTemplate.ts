@@ -58,37 +58,30 @@ export function createExcelTemplate(options: ExcelTemplateOptions = {}): ArrayBu
     const bomSampleRow = [];
     const bomDescriptions = [];
 
-    // Build headers based on column visibility
-    if (columnVisibility.no) {
-      bomHeaders.push('NO');
-      bomSampleRow.push('1');
-      bomDescriptions.push('Item number');
-    }
-    if (columnVisibility.partNumber) {
-      bomHeaders.push('Part Number');
-      bomSampleRow.push('VH2G4324-ONE');
-      bomDescriptions.push('Manufacturer part number');
-    }
-    if (columnVisibility.productDescription) {
-      bomHeaders.push('Product Description');
-      bomSampleRow.push('Catalyst 9300 48-port PoE+');
-      bomDescriptions.push('Detailed product description');
-    }
-    if (columnVisibility.qty) {
-      bomHeaders.push('QTY');
-      bomSampleRow.push('2');
-      bomDescriptions.push('Quantity needed');
-    }
-    if (columnVisibility.unitPrice) {
-      bomHeaders.push('Unit Price');
-      bomSampleRow.push('1500.00');
-      bomDescriptions.push('Price per unit (numbers only)');
-    }
-    if (columnVisibility.totalPrice) {
-      bomHeaders.push('Total Price');
-      bomSampleRow.push('3000.00');
-      bomDescriptions.push('Total price (QTY × Unit Price)');
-    }
+    // Always include ALL possible BOM columns in template (regardless of current visibility)
+    bomHeaders.push('NO');
+    bomSampleRow.push('1');
+    bomDescriptions.push('Item number');
+
+    bomHeaders.push('Part Number');
+    bomSampleRow.push('VH2G4324-ONE');
+    bomDescriptions.push('Manufacturer part number');
+
+    bomHeaders.push('Product Description');
+    bomSampleRow.push('Catalyst 9300 48-port PoE+');
+    bomDescriptions.push('Detailed product description');
+
+    bomHeaders.push('QTY');
+    bomSampleRow.push('2');
+    bomDescriptions.push('Quantity needed');
+
+    bomHeaders.push('Unit Price');
+    bomSampleRow.push('1500.00');
+    bomDescriptions.push('Price per unit (numbers only)');
+
+    bomHeaders.push('Total Price');
+    bomSampleRow.push('3000.00');
+    bomDescriptions.push('Total price (QTY × Unit Price)');
 
     const bomData = [
       bomHeaders,
