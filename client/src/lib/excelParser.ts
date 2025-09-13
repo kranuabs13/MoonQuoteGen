@@ -408,6 +408,17 @@ function parseBomRow(
       totalPrice: columnMap.totalPrice !== undefined ? parseNumber(row[columnMap.totalPrice]) : undefined,
     };
 
+    // Debug logging for product description issues
+    if (rowNumber <= 5) { // Only log first few rows to avoid spam
+      console.log(`DEBUG Row ${rowNumber}:`, {
+        rawRow: row,
+        columnMap,
+        productDescriptionIndex: columnMap.productDescription,
+        productDescriptionValue: row[columnMap.productDescription],
+        finalItem: item
+      });
+    }
+
     // Validation
     if (validateData) {
       if (!item.partNumber && !item.productDescription) {
