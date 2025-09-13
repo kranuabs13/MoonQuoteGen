@@ -40,6 +40,7 @@ interface QuotePreviewProps {
   bomItems: BomItem[];
   costItems: CostItem[];
   onSectionClick?: (section: string) => void;
+  showControls?: boolean;
 }
 
 export default function QuotePreview({
@@ -58,6 +59,7 @@ export default function QuotePreview({
   bomItems,
   costItems,
   onSectionClick,
+  showControls = true,
 }: QuotePreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -102,7 +104,68 @@ export default function QuotePreview({
     console.log(`Exporting as ${format.toUpperCase()}`);
     
     if (format === 'pdf') {
-      console.log('PDF export functionality is being rebuilt - coming soon!');
+      try {
+        // Build quote data for new PDF export system
+        const quoteData = {
+          quote: {
+            subject: quoteSubject,
+            customer: customerCompany,
+            salesPerson: salesPersonName,
+            terms: paymentTerms,
+            currency: currency
+          },
+          bomItems,
+          costItems,
+          columnVisibility,
+          bomEnabled,
+          costsEnabled,
+          date,
+          version,
+          contact: contactInfo,
+          // Legacy fields for compatibility
+          quoteSubject,
+          customerCompany,
+          salesPersonName,
+          paymentTerms,
+          contactInfo
+        };
+        
+        console.log('Creating export job...');
+        
+        // Step 1: Create export job
+        const jobResponse = await fetch('/api/export/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ quoteData })
+        });
+        
+        if (!jobResponse.ok) {
+          throw new Error(`Failed to create export job: ${jobResponse.status} ${jobResponse.statusText}`);
+        }
+        
+        const { jobId } = await jobResponse.json();
+        console.log('Export job created:', jobId);
+        
+        // Step 2: Trigger PDF generation and download
+        console.log('Generating PDF...');
+        const pdfUrl = `/api/export/pdf/${jobId}`;
+        
+        // Open download link
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `quote-${quoteSubject || 'document'}.pdf`.replace(/[^a-z0-9.-]/gi, '_');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('PDF download initiated successfully');
+        
+      } catch (error) {
+        console.error('PDF export failed:', error);
+        console.log('Export failed. Please try again.');
+      }
     } else if (format === 'word') {
       console.log('Word export not yet implemented');
       console.log('Word export feature is on the roadmap. Please use PDF export for now.');
@@ -113,7 +176,8 @@ export default function QuotePreview({
     <Card className={`h-full ${isFullscreen ? 'fixed inset-0 z-50' : ''}`} data-testid="card-quote-preview">
       <CardContent className="p-0 h-full flex flex-col">
         {/* Preview Controls */}
-        <div className="border-b p-2 flex items-center justify-between bg-muted/30">
+        {showControls && (
+        <div className="border-b p-2 flex items-center justify-between bg-muted/30 print-controls">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -167,6 +231,7 @@ export default function QuotePreview({
             </Button>
           </div>
         </div>
+        )}
 
         {/* Quote Document Preview */}
         <div className="flex-1 overflow-auto bg-gray-100">

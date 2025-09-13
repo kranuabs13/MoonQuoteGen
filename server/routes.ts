@@ -187,15 +187,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = await browser.newPage();
       
       try {
+        // Set print media emulation before navigation
+        await page.emulateMedia({ media: 'print' });
+        
         // Navigate to print route with quote data
         await page.goto(printUrl, { 
           waitUntil: 'networkidle',
           timeout: 30000
         });
         
-        // Wait for the page to be ready for export
+        // Wait for the page to be ready for export (includes background images)
         await page.waitForFunction(() => (window as any).__EXPORT_READY === true, {
-          timeout: 15000
+          timeout: 20000
         });
         
         // Additional wait for layout stabilization

@@ -246,11 +246,17 @@ export class DatabaseStorage implements IStorage {
 
   async cleanupExpiredJobs(): Promise<void> {
     const now = new Date();
-    for (const [id, job] of this.exportJobs.entries()) {
+    const expiredIds: string[] = [];
+    
+    this.exportJobs.forEach((job, id) => {
       if (now > job.expiresAt) {
-        this.exportJobs.delete(id);
+        expiredIds.push(id);
       }
-    }
+    });
+    
+    expiredIds.forEach(id => {
+      this.exportJobs.delete(id);
+    });
   }
 }
 

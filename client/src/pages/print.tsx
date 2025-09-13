@@ -144,6 +144,34 @@ export default function PrintPage() {
         });
       }));
 
+      // Wait for CSS background images to load
+      const elementsWithBackgrounds = Array.from(document.querySelectorAll('*')).filter(el => {
+        const style = window.getComputedStyle(el);
+        const bgImage = style.backgroundImage;
+        return bgImage && bgImage !== 'none' && bgImage.includes('url(');
+      });
+
+      await Promise.all(elementsWithBackgrounds.map(el => {
+        const style = window.getComputedStyle(el);
+        const bgImage = style.backgroundImage;
+        const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
+        
+        if (urlMatches) {
+          return Promise.all(urlMatches.map(urlMatch => {
+            const url = urlMatch.replace(/url\(["']?([^"')]+)["']?\)/, '$1');
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.onload = () => resolve(void 0);
+              img.onerror = () => resolve(void 0);
+              img.src = url;
+              // Timeout after 5 seconds
+              setTimeout(() => resolve(void 0), 5000);
+            });
+          }));
+        }
+        return Promise.resolve();
+      }));
+
       // Wait for fonts to load
       if (document.fonts && document.fonts.ready) {
         await document.fonts.ready;
@@ -209,11 +237,25 @@ export default function PrintPage() {
           width: 210mm !important;
           margin: 0 auto;
           background: white;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         
-        /* Hide interactive elements */
-        .print-controls,
+        @media screen {
+          .quote-preview-print {
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
+        }
+        
+        @media print {
+          .quote-preview-print {
+            box-shadow: none !important;
+          }
+        }
+        
+        /* Hide interactive elements and controls */
+        .print-controls {
+          display: none !important;
+        }
+        
         .hover\\:bg-blue-50,
         .cursor-pointer {
           pointer-events: none !important;
@@ -236,6 +278,7 @@ export default function PrintPage() {
           contactInfo={quoteData.contactInfo}
           bomItems={quoteData.bomItems}
           costItems={quoteData.costItems}
+          showControls={false}
         />
       </div>
       
