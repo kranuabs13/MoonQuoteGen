@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Maximize2, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import emetLogo from "@assets/image_1757577759606.png";
@@ -67,6 +67,8 @@ export default function QuotePreview({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const formatCurrency = (amount: number) => {
     // Map UI currency codes to valid ISO 4217 codes and locales
@@ -103,6 +105,17 @@ export default function QuotePreview({
     });
     console.log(`Zoom ${direction}: ${zoom}%`);
   };
+
+  // Calculate total pages and page mapping
+  const pages = [
+    { id: 1, name: 'Cover', visible: true },
+    { id: 2, name: 'Intro', visible: true },
+    { id: 3, name: 'BOM & Costs', visible: bomEnabled || costsEnabled },
+    { id: 4, name: 'Payment Terms', visible: true },
+    { id: 5, name: 'IP & Contact', visible: true }
+  ].filter(page => page.visible);
+
+  const totalPages = pages.length;
 
   const handlePdfDownload = async () => {
     setIsGeneratingPdf(true);
@@ -170,16 +183,40 @@ export default function QuotePreview({
     }
   };
 
-  // Calculate total pages and page mapping
-  const pages = [
-    { id: 1, name: 'Cover', visible: true },
-    { id: 2, name: 'Intro', visible: true },
-    { id: 3, name: 'BOM & Costs', visible: bomEnabled || costsEnabled },
-    { id: 4, name: 'Payment Terms', visible: true },
-    { id: 5, name: 'IP & Contact', visible: true }
-  ].filter(page => page.visible);
+  // Handle scroll between pages
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Debounce scroll events
+      scrollTimeoutRef.current = setTimeout(() => {
+        if (e.deltaY > 0) {
+          // Scroll down - go to next page
+          setCurrentPage(prev => Math.min(prev + 1, totalPages));
+        } else if (e.deltaY < 0) {
+          // Scroll up - go to previous page
+          setCurrentPage(prev => Math.max(prev - 1, 1));
+        }
+      }, 100);
+    };
 
-  const totalPages = pages.length;
+    const previewElement = previewRef.current;
+    if (previewElement) {
+      previewElement.addEventListener('wheel', handleWheel, { passive: false });
+      
+      return () => {
+        previewElement.removeEventListener('wheel', handleWheel);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
+    }
+  }, [totalPages]);
   
   // Ensure currentPage is within bounds
   const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
@@ -275,7 +312,7 @@ export default function QuotePreview({
         )}
 
         {/* Quote Document Preview */}
-        <div className="flex-1 overflow-auto bg-gray-100">
+        <div className="flex-1 overflow-auto bg-gray-100" ref={previewRef}>
           <div 
             className="mx-auto shadow-lg print:shadow-none relative"
             style={{ 
