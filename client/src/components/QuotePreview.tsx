@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
-import type { ColumnVisibility, ContactInfo } from "@shared/schema";
+import type { ColumnVisibility, ContactInfo, TemplateSettings } from "@shared/schema";
 
 interface BomItem {
   no: number;
@@ -43,6 +43,7 @@ interface QuotePreviewProps {
   costItems: CostItem[];
   onSectionClick?: (section: string) => void;
   showControls?: boolean;
+  templateSettings?: TemplateSettings;
 }
 
 export default function QuotePreview({
@@ -62,6 +63,7 @@ export default function QuotePreview({
   costItems,
   onSectionClick,
   showControls = true,
+  templateSettings,
 }: QuotePreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -98,6 +100,13 @@ export default function QuotePreview({
 
   // Use contactInfo from props instead of hardcoded contacts
   const contact = contactInfo;
+
+  // Use template settings with fallbacks
+  const companyLogo = templateSettings?.companyLogo || emetLogo;
+  const frameColor = templateSettings?.frameColor || '#1f2937';
+  const introText = templateSettings?.introText || 'EMET Dorcom is one of the most successful and experienced companies in the field of computer infrastructure and integration with extensive knowledge, which includes all types of technologies in the IT market.';
+  const tableHeaderColor = templateSettings?.tableHeaderColor || '#f3f4f6';
+  const introImage = templateSettings?.introImage || techDiagram;
 
   const handleZoom = (direction: 'in' | 'out') => {
     setZoom(prev => {
@@ -363,10 +372,10 @@ export default function QuotePreview({
                       {/* EMET Dorcom Logo - Top Center, Large */}
                       <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
                         <img 
-                          src={emetLogo} 
-                          alt="EMET Dorcom" 
+                          src={companyLogo} 
+                          alt="Company Logo" 
                           className="h-24 w-auto"
-                          data-testid="emet-logo-page1"
+                          data-testid="company-logo-page1"
                           style={{ imageRendering: 'crisp-edges', maxWidth: 'none' }}
                           crossOrigin="anonymous"
                         />
@@ -416,10 +425,10 @@ export default function QuotePreview({
                       {/* EMET Dorcom Logo - Top Left */}
                       <div className="absolute top-6 left-6">
                         <img 
-                          src={emetLogo} 
-                          alt="EMET Dorcom" 
+                          src={companyLogo} 
+                          alt="Company Logo" 
                           className="h-12 w-auto"
-                          data-testid="emet-logo-page2"
+                          data-testid="company-logo-page2"
                         />
                       </div>
 
@@ -429,9 +438,7 @@ export default function QuotePreview({
                           <h3 className="text-2xl font-bold mb-6 text-gray-900">Intro</h3>
                           <div className="text-base leading-relaxed space-y-4 text-gray-800">
                             <p>
-                              EMET Dorcom is one of the most successful and experienced companies in the field of
-                              computer infrastructure and integration with extensive knowledge, which includes all types of
-                              technologies in the IT market.
+                              {introText}
                             </p>
                             <p>
                               We provide comprehensive and complete solutions through the entire process and
@@ -460,7 +467,7 @@ export default function QuotePreview({
                         {/* Technology Solutions Diagram */}
                         <div className="mb-8">
                           <img 
-                            src={techDiagram} 
+                            src={introImage} 
                             alt="Technology Solutions" 
                             className="w-full max-w-4xl mx-auto"
                             data-testid="tech-diagram"
@@ -481,10 +488,10 @@ export default function QuotePreview({
                       {/* EMET Dorcom Logo - Top Left */}
                       <div className="absolute top-6 left-6">
                         <img 
-                          src={emetLogo} 
-                          alt="EMET Dorcom" 
+                          src={companyLogo} 
+                          alt="Company Logo" 
                           className="h-10 w-auto"
-                          data-testid="emet-logo-page3"
+                          data-testid="company-logo-page3"
                         />
                       </div>
 
@@ -590,10 +597,10 @@ export default function QuotePreview({
                       {/* EMET Dorcom Logo - Top Left */}
                       <div className="absolute top-6 left-6">
                         <img 
-                          src={emetLogo} 
-                          alt="EMET Dorcom" 
+                          src={companyLogo} 
+                          alt="Company Logo" 
                           className="h-10 w-auto"
-                          data-testid="emet-logo-page4"
+                          data-testid="company-logo-page4"
                         />
                       </div>
 
@@ -634,10 +641,10 @@ export default function QuotePreview({
                       {/* EMET Dorcom Logo - Top Left */}
                       <div className="absolute top-6 left-6">
                         <img 
-                          src={emetLogo} 
-                          alt="EMET Dorcom" 
+                          src={companyLogo} 
+                          alt="Company Logo" 
                           className="h-10 w-auto"
-                          data-testid="emet-logo-page5"
+                          data-testid="company-logo-page5"
                         />
                       </div>
 

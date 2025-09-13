@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileSpreadsheet, Save, FolderOpen, FileText, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, FileSpreadsheet, Save, FolderOpen, FileText, Plus, Trash2, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import ExcelUpload from "./ExcelUpload";
+import SettingsDialog from "./SettingsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -97,6 +98,7 @@ export default function QuoteForm() {
   const [quoteName, setQuoteName] = useState<string>("");
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   
   // Section collapse states
@@ -116,6 +118,21 @@ export default function QuoteForm() {
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch template settings from backend
+  const { data: templateSettings, isLoading: isLoadingSettings } = useQuery<TemplateSettings>({
+    queryKey: ['/api/settings'],
+  });
+
+  // Update form data when template settings are loaded
+  useEffect(() => {
+    if (templateSettings) {
+      setFormData(prev => ({
+        ...prev,
+        templateSettings
+      }));
+    }
+  }, [templateSettings]);
 
   // Debounce form data for performance optimization (200ms as specified)
   const debouncedFormData = useDebounce(formData, 200);
@@ -428,6 +445,16 @@ export default function QuoteForm() {
         <Plus className="h-4 w-4 mr-2" />
         New
       </Button>
+      
+      <Button
+        variant="outline"
+        onClick={() => setIsSettingsDialogOpen(true)}
+        data-testid="button-settings"
+        size="sm"
+      >
+        <Settings className="h-4 w-4 mr-2" />
+        Settings
+      </Button>
     </>
   );
 
@@ -601,6 +628,7 @@ export default function QuoteForm() {
       bomItems={debouncedFormData.bomItems || []}
       costItems={debouncedFormData.costItems}
       onSectionClick={handleSectionClick}
+      templateSettings={debouncedFormData.templateSettings || templateSettings || defaultTemplateSettings}
     />
   );
 
@@ -758,6 +786,12 @@ export default function QuoteForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Settings Dialog */}
+      <SettingsDialog
+        open={isSettingsDialogOpen}
+        onOpenChange={setIsSettingsDialogOpen}
+      />
     </>
   );
 }
