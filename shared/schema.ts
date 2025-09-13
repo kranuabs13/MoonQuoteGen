@@ -109,8 +109,53 @@ export type ContactInfo = {
   email: string;
 };
 
+// BOM Group for supporting multiple BOMs
+export type BomGroup = {
+  id: string;
+  name: string;
+  items: Array<{
+    no: number;
+    partNumber: string;
+    productDescription: string;
+    quantity: number;
+    unitPrice?: number;
+    totalPrice?: number;
+  }>;
+};
+
+// Template settings for quote customization
+export type TemplateSettings = {
+  templateId: string;
+  companyLogo?: string; // base64 encoded image
+  frameColor: string;
+  introText: string;
+  introImage?: string; // base64 encoded image
+  tableHeaderColor: string;
+};
+
+// Default template settings
+export const defaultTemplateSettings: TemplateSettings = {
+  templateId: 'default',
+  frameColor: '#1f2937', // Default dark gray
+  introText: 'This quote outlines the proposed solution for your requirements. Please review the specifications and pricing details.',
+  tableHeaderColor: '#f3f4f6', // Default light gray
+};
+
+// Validation schema for TemplateSettings
+export const insertTemplateSettingsSchema = z.object({
+  templateId: z.string().min(1, "Template ID is required"),
+  companyLogo: z.string().optional(),
+  frameColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Frame color must be a valid hex color"),
+  introText: z.string().min(1, "Intro text is required"),
+  introImage: z.string().optional(),
+  tableHeaderColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Table header color must be a valid hex color"),
+});
+
+export type InsertTemplateSettings = z.infer<typeof insertTemplateSettingsSchema>;
+
 // Form data types for the input components
 export type QuoteFormData = {
+  id?: string; // For saving/loading quotes
   quoteSubject: string;
   customerCompany: string;
   customerLogo?: File | string;
@@ -123,7 +168,10 @@ export type QuoteFormData = {
   costsEnabled: boolean;
   columnVisibility: ColumnVisibility;
   contactInfo: ContactInfo;
-  bomItems: Array<{
+  // Multiple BOM groups support - new feature
+  bomGroups?: BomGroup[];
+  // Legacy single BOM items - kept for backwards compatibility
+  bomItems?: Array<{
     no: number;
     partNumber: string;
     productDescription: string;
@@ -138,7 +186,77 @@ export type QuoteFormData = {
     totalPrice: number;
     isDiscount: boolean;
   }>;
+  // Template settings for customization
+  templateSettings?: TemplateSettings;
+  // Metadata for organization
+  lastModified?: string;
 };
+
+// Insert schema for quotes with new features
+export const insertQuoteFormDataSchema = z.object({
+  id: z.string().optional(),
+  quoteSubject: z.string().min(1, "Quote subject is required"),
+  customerCompany: z.string(),
+  customerLogo: z.string().optional(),
+  salesPersonName: z.string().min(1, "Sales person name is required"),
+  date: z.string(),
+  version: z.string().default("1"),
+  paymentTerms: z.string().default("Current +30"),
+  currency: z.string().default("USD"),
+  bomEnabled: z.boolean().default(true),
+  costsEnabled: z.boolean().default(true),
+  columnVisibility: z.object({
+    no: z.boolean(),
+    partNumber: z.boolean(),
+    productDescription: z.boolean(),
+    qty: z.boolean(),
+    unitPrice: z.boolean(),
+    totalPrice: z.boolean(),
+  }),
+  contactInfo: z.object({
+    salesPersonName: z.string(),
+    phone: z.string(),
+    email: z.string(),
+  }),
+  bomGroups: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    items: z.array(z.object({
+      no: z.number(),
+      partNumber: z.string(),
+      productDescription: z.string(),
+      quantity: z.number().min(1),
+      unitPrice: z.number().optional(),
+      totalPrice: z.number().optional(),
+    })),
+  })).optional(),
+  bomItems: z.array(z.object({
+    no: z.number(),
+    partNumber: z.string(),
+    productDescription: z.string(),
+    quantity: z.number().min(1),
+    unitPrice: z.number().optional(),
+    totalPrice: z.number().optional(),
+  })).optional(),
+  costItems: z.array(z.object({
+    productDescription: z.string(),
+    quantity: z.number().min(1),
+    unitPrice: z.number(),
+    totalPrice: z.number(),
+    isDiscount: z.boolean().default(false),
+  })),
+  templateSettings: z.object({
+    templateId: z.string(),
+    companyLogo: z.string().optional(),
+    frameColor: z.string(),
+    introText: z.string(),
+    introImage: z.string().optional(),
+    tableHeaderColor: z.string(),
+  }).optional(),
+  lastModified: z.string().optional(),
+});
+
+export type InsertQuoteFormData = z.infer<typeof insertQuoteFormDataSchema>;
 
 // Legacy user types (keeping for compatibility)
 export const users = pgTable("users", {

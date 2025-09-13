@@ -11,8 +11,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, FileSpreadsheet } from "lucide-react";
 import ExcelUpload from "./ExcelUpload";
 import { useToast } from "@/hooks/use-toast";
-import type { QuoteFormData, ColumnVisibility, ContactInfo } from "@shared/schema";
+import type { QuoteFormData, ColumnVisibility, ContactInfo, BomGroup, TemplateSettings } from "@shared/schema";
 import type { ParsedExcelData } from "../lib/excelParser";
+
+// Import defaultTemplateSettings with proper ES6 import and fallback
+import * as schemaModule from "@shared/schema";
+
+const defaultTemplateSettings: TemplateSettings = schemaModule.defaultTemplateSettings || {
+  templateId: 'default',
+  frameColor: '#1f2937',
+  introText: 'This quote outlines the proposed solution for your requirements. Please review the specifications and pricing details.',
+  tableHeaderColor: '#f3f4f6',
+};
+
+// Migration utility to convert legacy bomItems to bomGroups
+function migrateLegacyBomData(data: any): QuoteFormData {
+  // If data has bomItems but no bomGroups, migrate to bomGroups format
+  if (data.bomItems && !data.bomGroups) {
+    const bomGroup: BomGroup = {
+      id: 'bom-1',
+      name: 'BOM 1',
+      items: data.bomItems
+    };
+    return {
+      ...data,
+      bomGroups: [bomGroup],
+      bomItems: data.bomItems // Keep legacy for compatibility
+    };
+  }
+  
+  // If no bomGroups and no bomItems, ensure both exist
+  if (!data.bomGroups && !data.bomItems) {
+    return {
+      ...data,
+      bomGroups: [],
+      bomItems: []
+    };
+  }
+  
+  return data;
+}
 
 // TODO: Remove mock functionality - this will be replaced with real data persistence
 const MOCK_INITIAL_DATA: QuoteFormData = {
@@ -39,8 +77,11 @@ const MOCK_INITIAL_DATA: QuoteFormData = {
     phone: "+97252-750-3069",
     email: "david.gilboa@emetdorcom.co.il",
   },
-  bomItems: [],
+  bomGroups: [],
+  bomItems: [], // Legacy compatibility
   costItems: [],
+  templateSettings: defaultTemplateSettings,
+  lastModified: new Date().toISOString(),
 };
 
 export default function QuoteForm() {
@@ -70,10 +111,17 @@ export default function QuoteForm() {
           contactInfo: {
             ...MOCK_INITIAL_DATA.contactInfo,
             ...(parsed.contactInfo || {})
+          },
+          templateSettings: {
+            ...MOCK_INITIAL_DATA.templateSettings,
+            ...(parsed.templateSettings || {})
           }
         };
-        setFormData(mergedData);
-        console.log('Loaded saved quote data with defaults');
+        
+        // Apply migration for legacy data
+        const migratedData = migrateLegacyBomData(mergedData);
+        setFormData(migratedData);
+        console.log('Loaded saved quote data with defaults and migration');
       } catch (error) {
         console.error('Failed to load saved data:', error);
       }
@@ -283,7 +331,7 @@ export default function QuoteForm() {
       {formData.bomEnabled && (
         <BomSection
           bomEnabled={formData.bomEnabled}
-          bomItems={formData.bomItems}
+          bomItems={formData.bomItems || []}
           columnVisibility={formData.columnVisibility}
           onBomEnabledChange={(enabled) => 
             setFormData(prev => ({ ...prev, bomEnabled: enabled }))
@@ -322,7 +370,7 @@ export default function QuoteForm() {
       costsEnabled={debouncedFormData.costsEnabled}
       columnVisibility={debouncedFormData.columnVisibility}
       contactInfo={debouncedFormData.contactInfo}
-      bomItems={debouncedFormData.bomItems}
+      bomItems={debouncedFormData.bomItems || []}
       costItems={debouncedFormData.costItems}
       onSectionClick={handleSectionClick}
     />

@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./storage";
-import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
+import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema, insertQuoteFormDataSchema, insertTemplateSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import { readFileSync } from "fs";
@@ -118,6 +118,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting quote:', error);
       res.status(500).json({ error: 'Failed to delete quote' });
+    }
+  });
+
+  // NEW QUOTE FORM ROUTES (using QuoteFormData structure)
+  
+  // Save a new quote form
+  app.post("/api/quote-forms", async (req, res) => {
+    try {
+      console.log('POST /api/quote-forms - Request body:', JSON.stringify(req.body, null, 2));
+      const validatedData = insertQuoteFormDataSchema.parse(req.body);
+      const savedQuote = await storage.saveQuoteForm(validatedData);
+      console.log('POST /api/quote-forms - Saved quote:', savedQuote.id);
+      res.json(savedQuote);
+    } catch (error) {
+      console.error('Error saving quote form:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid request' });
+    }
+  });
+
+  // Get all quote forms (list view)
+  app.get("/api/quote-forms", async (req, res) => {
+    try {
+      const quotes = await storage.getAllQuoteForms();
+      console.log('GET /api/quote-forms - Number of quotes:', quotes.length);
+      res.json(quotes);
+    } catch (error) {
+      console.error('Error fetching quote forms:', error);
+      res.status(500).json({ error: 'Failed to fetch quotes' });
+    }
+  });
+
+  // Get a specific quote form by ID
+  app.get("/api/quote-forms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const quote = await storage.getQuoteForm(id);
+      
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json(quote);
+    } catch (error) {
+      console.error('Error fetching quote form:', error);
+      res.status(500).json({ error: 'Failed to fetch quote' });
+    }
+  });
+
+  // Update a quote form
+  app.put("/api/quote-forms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`PUT /api/quote-forms/${id} - Request body:`, JSON.stringify(req.body, null, 2));
+      const validatedData = insertQuoteFormDataSchema.parse(req.body);
+      const updatedQuote = await storage.updateQuoteForm(id, validatedData);
+      
+      if (!updatedQuote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json(updatedQuote);
+    } catch (error) {
+      console.error('Error updating quote form:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid request' });
+    }
+  });
+
+  // Delete a quote form
+  app.delete("/api/quote-forms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteQuoteForm(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json({ success: true, message: 'Quote deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting quote form:', error);
+      res.status(500).json({ error: 'Failed to delete quote' });
+    }
+  });
+
+  // SETTINGS ROUTES
+  
+  // Get template settings
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+  });
+
+  // Update template settings
+  app.put("/api/settings", async (req, res) => {
+    try {
+      console.log('PUT /api/settings - Request body:', JSON.stringify(req.body, null, 2));
+      const validatedData = insertTemplateSettingsSchema.parse(req.body);
+      const updatedSettings = await storage.updateSettings(validatedData);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid request' });
     }
   });
 
