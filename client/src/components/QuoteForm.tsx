@@ -9,7 +9,10 @@ import { downloadExcelTemplate, downloadBomOnlyTemplate } from "../lib/excelTemp
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, FileSpreadsheet } from "lucide-react";
+import ExcelUpload from "./ExcelUpload";
+import { useToast } from "@/hooks/use-toast";
 import type { QuoteFormData, ColumnVisibility, ContactInfo } from "@shared/schema";
+import type { ParsedExcelData } from "../lib/excelParser";
 
 // TODO: Remove mock functionality - this will be replaced with real data persistence
 const MOCK_INITIAL_DATA: QuoteFormData = {
@@ -43,6 +46,7 @@ const MOCK_INITIAL_DATA: QuoteFormData = {
 export default function QuoteForm() {
   const [formData, setFormData] = useState<QuoteFormData>(MOCK_INITIAL_DATA);
   const [customerLogoUrl, setCustomerLogoUrl] = useState<string>("");
+  const { toast } = useToast();
 
   // Debounce form data for performance optimization (200ms as specified)
   const debouncedFormData = useDebounce(formData, 200);
@@ -106,6 +110,65 @@ export default function QuoteForm() {
     console.log(`Jumping to section: ${section}`);
     // TODO: Implement section focus functionality
     // This would scroll the input panel to the corresponding section
+  };
+
+  const handleExcelDataParsed = (data: ParsedExcelData) => {
+    let updatedData = { ...formData };
+    let changesCount = 0;
+
+    // Update quote info if available
+    if (data.quoteInfo) {
+      const quoteUpdates = Object.entries(data.quoteInfo).filter(([_, value]) => value !== undefined && value !== '');
+      if (quoteUpdates.length > 0) {
+        Object.assign(updatedData, data.quoteInfo);
+        changesCount += quoteUpdates.length;
+      }
+    }
+
+    // Update BOM items if available
+    if (data.bomItems && data.bomItems.length > 0) {
+      updatedData.bomItems = data.bomItems;
+      changesCount += data.bomItems.length;
+    }
+
+    // Update cost items if available
+    if (data.costItems && data.costItems.length > 0) {
+      updatedData.costItems = data.costItems;
+      changesCount += data.costItems.length;
+    }
+
+    // Apply all updates
+    if (changesCount > 0) {
+      setFormData(updatedData);
+      
+      toast({
+        title: "Excel data imported successfully!",
+        description: `Imported ${changesCount} items. ${data.warnings.length > 0 ? `${data.warnings.length} warnings generated.` : ''}`,
+      });
+
+      // Log the import for debugging
+      console.log('Excel data imported:', {
+        quoteInfo: data.quoteInfo,
+        bomItemsCount: data.bomItems?.length || 0,
+        costItemsCount: data.costItems?.length || 0,
+        warnings: data.warnings,
+      });
+    } else {
+      toast({
+        title: "No data to import",
+        description: "The Excel file didn't contain any recognizable data to import.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExcelError = (error: string) => {
+    toast({
+      title: "Excel import failed",
+      description: error,
+      variant: "destructive",
+    });
+    console.error('Excel import error:', error);
   };
 
   const handleSave = () => {
@@ -201,6 +264,18 @@ export default function QuoteForm() {
                 BOM Only
               </Button>
             )}
+          </div>
+
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-2">Upload Filled Template</h4>
+            <ExcelUpload
+              onDataParsed={handleExcelDataParsed}
+              onError={handleExcelError}
+              parseOptions={{
+                validateData: true,
+                allowPartialData: true
+              }}
+            />
           </div>
         </CardContent>
       </Card>
