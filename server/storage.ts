@@ -39,6 +39,34 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Quote form operations (required by interface) - not implemented for database storage
+  async saveQuoteForm(quoteData: QuoteFormData): Promise<QuoteFormData> {
+    throw new Error("Database storage for QuoteFormData not implemented - use MemStorage");
+  }
+  
+  async getQuoteForm(id: string): Promise<QuoteFormData | undefined> {
+    throw new Error("Database storage for QuoteFormData not implemented - use MemStorage");
+  }
+  
+  async getAllQuoteForms(): Promise<QuoteFormData[]> {
+    throw new Error("Database storage for QuoteFormData not implemented - use MemStorage");
+  }
+  
+  async deleteQuoteForm(id: string): Promise<boolean> {
+    throw new Error("Database storage for QuoteFormData not implemented - use MemStorage");
+  }
+  
+  async updateQuoteForm(id: string, quoteData: QuoteFormData): Promise<QuoteFormData | undefined> {
+    throw new Error("Database storage for QuoteFormData not implemented - use MemStorage");
+  }
+  
+  async getSettings(): Promise<TemplateSettings> {
+    throw new Error("Database storage for settings not implemented - use MemStorage");
+  }
+  
+  async updateSettings(settings: TemplateSettings): Promise<TemplateSettings> {
+    throw new Error("Database storage for settings not implemented - use MemStorage");
+  }
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;

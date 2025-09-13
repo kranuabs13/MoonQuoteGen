@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useDebounce } from "../hooks/use-debounce";
 import QuoteHeader from "./QuoteHeader";
 import BomSection from "./BomSection";
+import BomGroupsSection from "./BomGroupsSection";
 import CostSection from "./CostSection";
 import QuotePreview from "./QuotePreview";
 import MainLayout from "./MainLayout";
@@ -47,7 +48,21 @@ function migrateLegacyBomData(data: any): QuoteFormData {
     };
   }
   
-  // If no bomGroups and no bomItems, ensure both exist
+  // If bomEnabled is true but no bomGroups exist, create first group
+  if (data.bomEnabled && (!data.bomGroups || data.bomGroups.length === 0)) {
+    const initialBomGroup: BomGroup = {
+      id: 'bom-1',
+      name: 'BOM 1',
+      items: data.bomItems || []
+    };
+    return {
+      ...data,
+      bomGroups: [initialBomGroup],
+      bomItems: data.bomItems || [] // Keep legacy for compatibility
+    };
+  }
+  
+  // If no bomGroups and no bomItems, ensure both exist as empty arrays
   if (!data.bomGroups && !data.bomItems) {
     return {
       ...data,
@@ -584,16 +599,29 @@ export default function QuoteForm() {
       />
 
       {formData.bomEnabled && (
-        <BomSection
+        <BomGroupsSection
           bomEnabled={formData.bomEnabled}
-          bomItems={formData.bomItems || []}
+          bomGroups={formData.bomGroups || []}
           columnVisibility={formData.columnVisibility}
           onBomEnabledChange={(enabled) => 
             setFormData(prev => ({ ...prev, bomEnabled: enabled }))
           }
-          onBomItemsChange={(items) => 
-            setFormData(prev => ({ ...prev, bomItems: items }))
-          }
+          onBomGroupsChange={(groups) => {
+            // Flatten all groups' items into a single bomItems array for backward compatibility
+            const allItems = groups.flatMap((group, groupIndex) => 
+              group.items.map((item, itemIndex) => ({
+                ...item,
+                no: groups.slice(0, groupIndex).reduce((sum, g) => sum + g.items.length, 0) + itemIndex + 1
+              }))
+            );
+            
+            setFormData(prev => ({ 
+              ...prev, 
+              bomGroups: groups,
+              // Keep legacy bomItems in sync for backward compatibility with all groups' items
+              bomItems: allItems
+            }));
+          }}
           onColumnVisibilityChange={(columnVisibility) => 
             setFormData(prev => ({ ...prev, columnVisibility }))
           }
@@ -625,7 +653,7 @@ export default function QuoteForm() {
       costsEnabled={debouncedFormData.costsEnabled}
       columnVisibility={debouncedFormData.columnVisibility}
       contactInfo={debouncedFormData.contactInfo}
-      bomItems={debouncedFormData.bomItems || []}
+      bomGroups={debouncedFormData.bomGroups || []}
       costItems={debouncedFormData.costItems}
       onSectionClick={handleSectionClick}
       templateSettings={debouncedFormData.templateSettings || templateSettings || defaultTemplateSettings}

@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import emetLogo from "@assets/image_1757577759606.png";
 import techDiagram from "@assets/image_1757577458643.png";
 import frameImage from "@assets/image_1757577550193.png";
-import type { ColumnVisibility, ContactInfo, TemplateSettings } from "@shared/schema";
+import type { ColumnVisibility, ContactInfo, TemplateSettings, BomGroup } from "@shared/schema";
 
 interface BomItem {
   no: number;
@@ -39,7 +39,7 @@ interface QuotePreviewProps {
   costsEnabled: boolean;
   columnVisibility: ColumnVisibility;
   contactInfo: ContactInfo;
-  bomItems: BomItem[];
+  bomGroups: BomGroup[];
   costItems: CostItem[];
   onSectionClick?: (section: string) => void;
   showControls?: boolean;
@@ -59,7 +59,7 @@ export default function QuotePreview({
   costsEnabled,
   columnVisibility,
   contactInfo,
-  bomItems,
+  bomGroups,
   costItems,
   onSectionClick,
   showControls = true,
@@ -506,33 +506,46 @@ export default function QuotePreview({
                             <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
                             <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
                             
-                            {bomItems.length > 0 ? (
-                              <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
-                                <thead>
-                                  <tr className="border-b-2 border-gray-400">
-                                    {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>NO</th>}
-                                    {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>PN</th>}
-                                    {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>}
-                                    {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>}
-                                    {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
-                                    {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {bomItems.map((item, index) => (
-                                    <tr key={index} className="border-b border-gray-200">
-                                      {columnVisibility.no && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.no}</td>}
-                                      {columnVisibility.partNumber && <td className="p-2 font-medium border-r border-gray-200 whitespace-nowrap">{item.partNumber}</td>}
-                                      {columnVisibility.productDescription && <td className="p-2 border-r border-gray-200">{item.productDescription}</td>}
-                                      {columnVisibility.qty && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.quantity}</td>}
-                                      {columnVisibility.unitPrice && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
-                                      {columnVisibility.totalPrice && <td className="p-2 whitespace-nowrap">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            {bomGroups.length > 0 ? (
+                              <div className="space-y-6">
+                                {bomGroups.map((group, groupIndex) => (
+                                  <div key={group.id}>
+                                    {/* Group Header */}
+                                    <h5 className="text-lg font-semibold text-gray-800 mb-3">{group.name}</h5>
+                                    
+                                    {group.items.length > 0 ? (
+                                      <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
+                                        <thead>
+                                          <tr className="border-b-2 border-gray-400">
+                                            {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>NO</th>}
+                                            {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>PN</th>}
+                                            {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Product Description</th>}
+                                            {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>QTY</th>}
+                                            {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Unit Price</th>}
+                                            {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Total Price</th>}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {group.items.map((item, itemIndex) => (
+                                            <tr key={itemIndex} className="border-b border-gray-200">
+                                              {columnVisibility.no && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.no}</td>}
+                                              {columnVisibility.partNumber && <td className="p-2 font-medium border-r border-gray-200 whitespace-nowrap">{item.partNumber}</td>}
+                                              {columnVisibility.productDescription && <td className="p-2 border-r border-gray-200">{item.productDescription}</td>}
+                                              {columnVisibility.qty && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.quantity}</td>}
+                                              {columnVisibility.unitPrice && <td className="p-2 border-r border-gray-200 whitespace-nowrap">{item.unitPrice !== undefined && item.unitPrice !== null ? formatCurrency(item.unitPrice) : ''}</td>}
+                                              {columnVisibility.totalPrice && <td className="p-2 whitespace-nowrap">{item.totalPrice !== undefined && item.totalPrice !== null ? formatCurrency(item.totalPrice) : ''}</td>}
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    ) : (
+                                      <p className="text-gray-500 italic text-center py-4 text-sm">No items in {group.name}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             ) : (
-                              <p className="text-gray-500 italic text-center py-6">No BOM items added yet</p>
+                              <p className="text-gray-500 italic text-center py-6">No BOM groups added yet</p>
                             )}
                           </div>
                         )}
