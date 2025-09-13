@@ -1,9 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
 import { storage } from "./storage";
 import { insertQuoteSchema, insertBomItemSchema, insertCostItemSchema } from "@shared/schema";
 import { z } from "zod";
-import PDFDocument from 'pdfkit';
+import puppeteer from 'puppeteer';
+import { generateQuoteHTML } from './html/quoteTemplate';
 
 // Schema for saving quotes with BOM and cost items
 const saveQuoteSchema = z.object({
@@ -13,6 +15,9 @@ const saveQuoteSchema = z.object({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve static assets from public directory
+  app.use('/assets', require('express').static(path.join(__dirname, '../public/assets')));
+  
   // Quote routes
   
   // Save a new quote
@@ -110,257 +115,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF Generation route using PDFKit
+  // PDF Generation route using Puppeteer
   app.post("/api/generate-pdf", async (req, res) => {
     try {
       const { quoteData, filename } = req.body;
       
-      if (!quoteData || !filename) {
-        return res.status(400).json({ error: 'Quote data and filename are required' });
+      if (!quoteData) {
+        return res.status(400).json({ error: 'Quote data is required' });
       }
       
-      console.log('Generating PDF with PDFKit for:', filename);
+      const suggestedFilename = filename || `quote-${quoteData.quote?.subject || 'document'}.pdf`;
+      console.log('Generating PDF with Puppeteer for:', suggestedFilename);
       
-      // Helper functions for calculations
-      const calculateSubtotal = (data: any) => {
-        const bomTotal = data.bomItems?.reduce((sum: number, item: any) => 
-          sum + (item.quantity || 0) * (item.unitPrice || 0), 0) || 0;
-        const costTotal = data.costItems?.reduce((sum: number, item: any) => 
-          sum + (item.amount || 0) * (1 - (item.discount || 0) / 100), 0) || 0;
-        return bomTotal + costTotal;
-      };
-
-      const calculateTotal = (data: any) => {
-        return calculateSubtotal(data);
-      };
-
-      // Create a new PDF document
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        info: {
-          Title: `Quote - ${quoteData.quote?.subject || 'N/A'}`,
-          Author: 'EMET Dorcom',
-          Subject: 'Professional Quote',
-          Keywords: 'quote, invoice, bill'
-        }
+      // Generate HTML from template
+      const html = generateQuoteHTML(quoteData);
+      
+      // Launch Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process'
+        ]
       });
       
-      // Collect the PDF buffer
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(chunks);
-        console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+      const page = await browser.newPage();
+      
+      try {
+        // Set content with HTML
+        await page.setContent(html, { 
+          waitUntil: 'networkidle0',
+          timeout: 30000
+        });
+        
+        // Wait for fonts to load
+        await page.evaluate(async () => {
+          if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+          }
+        });
+        
+        // Wait a bit more to ensure everything is rendered
+        await page.waitForTimeout(1000);
+        
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '12mm',
+            right: '12mm', 
+            bottom: '12mm',
+            left: '12mm'
+          },
+          preferCSSPageSize: true
+        });
+        
+        console.log('PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
         
         // Set headers for PDF download
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${suggestedFilename}"`);
         res.setHeader('Content-Length', pdfBuffer.length);
         
         // Send the PDF buffer
         res.send(pdfBuffer);
-      });
-
-      // Colors for professional styling
-      const primaryBlue = '#4A90E2';
-      const darkGray = '#2D3748';
-      const mediumGray = '#4A5568';
-      const lightGray = '#E2E8F0';
-
-      // Header section
-      doc.fontSize(28).font('Helvetica-Bold').fillColor(darkGray).text('EMET DORCOM', 50, 50);
-      doc.fontSize(12).font('Helvetica').fillColor(mediumGray)
-         .text('Engineering Solutions & Technology', 50, 85)
-         .text('Tel: +972-XXX-XXXX | Email: info@emetdorcom.com', 50, 100);
-      
-      // Blue header line
-      doc.rect(50, 125, 495, 3).fill(primaryBlue);
-      
-      // Title
-      doc.fontSize(20).font('Helvetica-Bold').fillColor(darkGray)
-         .text('PROFESSIONAL QUOTE', 50, 145, { align: 'center', width: 495 });
-      
-      let yPos = 185;
-
-      // Quote Information Section
-      doc.fontSize(14).font('Helvetica-Bold').fillColor(darkGray).text('Quote Information', 50, yPos);
-      yPos += 20;
-      
-      // Quote details in two columns
-      const leftCol = 50;
-      const rightCol = 300;
-      doc.fontSize(10).font('Helvetica-Bold').fillColor(mediumGray);
-      
-      doc.text('Subject:', leftCol, yPos);
-      doc.font('Helvetica').fillColor(darkGray).text(quoteData.quote?.subject || 'N/A', leftCol + 80, yPos);
-      
-      doc.font('Helvetica-Bold').fillColor(mediumGray).text('Customer:', rightCol, yPos);
-      doc.font('Helvetica').fillColor(darkGray).text(quoteData.quote?.customer || 'N/A', rightCol + 80, yPos);
-      yPos += 15;
-      
-      doc.font('Helvetica-Bold').fillColor(mediumGray).text('Sales Person:', leftCol, yPos);
-      doc.font('Helvetica').fillColor(darkGray).text(quoteData.quote?.salesPerson || 'N/A', leftCol + 80, yPos);
-      
-      doc.font('Helvetica-Bold').fillColor(mediumGray).text('Payment Terms:', rightCol, yPos);
-      doc.font('Helvetica').fillColor(darkGray).text(`${quoteData.quote?.terms || 'N/A'} days`, rightCol + 80, yPos);
-      yPos += 15;
-      
-      doc.font('Helvetica-Bold').fillColor(mediumGray).text('Currency:', leftCol, yPos);
-      doc.font('Helvetica').fillColor(darkGray).text(quoteData.quote?.currency || 'USD', leftCol + 80, yPos);
-      yPos += 30;
-
-      // BOM Section
-      if (quoteData.bomItems && quoteData.bomItems.length > 0) {
-        doc.fontSize(14).font('Helvetica-Bold').fillColor(darkGray).text('Bill of Materials', 50, yPos);
-        yPos += 20;
         
-        // Table headers
-        const tableHeaders = ['No.', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total'];
-        const colWidths = [30, 100, 200, 40, 80, 80];
-        let xPos = 50;
-        
-        // Header background
-        doc.rect(50, yPos - 5, 530, 20).fill(primaryBlue);
-        
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#FFFFFF');
-        tableHeaders.forEach((header, i) => {
-          doc.text(header, xPos + 5, yPos, { width: colWidths[i], align: 'center' });
-          xPos += colWidths[i];
-        });
-        yPos += 20;
-        
-        // Table rows
-        doc.font('Helvetica').fillColor(darkGray);
-        quoteData.bomItems.forEach((item: any, index: number) => {
-          if (yPos > 720) { // Start new page if needed
-            doc.addPage();
-            yPos = 50;
-          }
-          
-          // Alternating row colors
-          if (index % 2 === 0) {
-            doc.rect(50, yPos - 3, 530, 18).fill('#F7FAFC');
-          }
-          
-          xPos = 50;
-          const rowData = [
-            (index + 1).toString(),
-            item.partNumber || '',
-            item.description || '',
-            (item.quantity || 0).toString(),
-            `${item.unitPrice || 0}`,
-            `${(item.quantity * item.unitPrice) || 0}`
-          ];
-          
-          rowData.forEach((data, i) => {
-            const align = i >= 3 ? 'right' : 'left';
-            doc.fontSize(8).fillColor(darkGray).text(data, xPos + 5, yPos, { 
-              width: colWidths[i] - 10, 
-              align 
-            });
-            xPos += colWidths[i];
-          });
-          yPos += 18;
-        });
-        yPos += 20;
-      }
-
-      // Cost Section
-      if (quoteData.costItems && quoteData.costItems.length > 0) {
-        if (yPos > 650) { // Start new page if needed
-          doc.addPage();
-          yPos = 50;
-        }
-        
-        doc.fontSize(14).font('Helvetica-Bold').fillColor(darkGray).text('Cost Breakdown', 50, yPos);
-        yPos += 20;
-        
-        // Table headers
-        const costHeaders = ['Description', 'Amount', 'Discount %', 'Final Amount'];
-        const costColWidths = [250, 100, 80, 100];
-        let xPos = 50;
-        
-        // Header background
-        doc.rect(50, yPos - 5, 530, 20).fill(primaryBlue);
-        
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#FFFFFF');
-        costHeaders.forEach((header, i) => {
-          doc.text(header, xPos + 5, yPos, { width: costColWidths[i], align: 'center' });
-          xPos += costColWidths[i];
-        });
-        yPos += 20;
-        
-        // Table rows
-        doc.font('Helvetica').fillColor(darkGray);
-        quoteData.costItems.forEach((item: any, index: number) => {
-          if (yPos > 720) { // Start new page if needed
-            doc.addPage();
-            yPos = 50;
-          }
-          
-          // Alternating row colors
-          if (index % 2 === 0) {
-            doc.rect(50, yPos - 3, 530, 18).fill('#F7FAFC');
-          }
-          
-          xPos = 50;
-          const finalAmount = item.amount * (1 - (item.discount || 0) / 100);
-          const rowData = [
-            item.description || '',
-            `${item.amount || 0}`,
-            `${item.discount || 0}%`,
-            `${finalAmount.toFixed(2)}`
-          ];
-          
-          rowData.forEach((data, i) => {
-            const align = i >= 1 ? 'right' : 'left';
-            doc.fontSize(8).fillColor(darkGray).text(data, xPos + 5, yPos, { 
-              width: costColWidths[i] - 10, 
-              align 
-            });
-            xPos += costColWidths[i];
-          });
-          yPos += 18;
-        });
-        yPos += 20;
-      }
-
-      // Totals section
-      if (yPos > 700) { // Start new page if needed
-        doc.addPage();
-        yPos = 50;
+      } finally {
+        await browser.close();
       }
       
-      const subtotal = calculateSubtotal(quoteData);
-      const total = calculateTotal(quoteData);
-      
-      yPos += 20;
-      doc.fontSize(12).font('Helvetica-Bold').fillColor(darkGray);
-      
-      // Right-aligned totals
-      const totalX = 450;
-      doc.text('Subtotal:', totalX - 80, yPos);
-      doc.text(`${subtotal} ${quoteData.quote?.currency || 'USD'}`, totalX, yPos, { align: 'right', width: 80 });
-      yPos += 20;
-      
-      doc.fontSize(14).font('Helvetica-Bold');
-      doc.text('Total:', totalX - 80, yPos);
-      doc.text(`${total} ${quoteData.quote?.currency || 'USD'}`, totalX, yPos, { align: 'right', width: 80 });
-      
-      // Footer
-      doc.fontSize(8).font('Helvetica').fillColor(mediumGray)
-         .text('Thank you for your business - EMET Dorcom Engineering Solutions', 50, 750, { 
-           align: 'center', 
-           width: 495 
-         });
-      
-      // Finalize the PDF
-      doc.end();
-      
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating PDF:', error);
-      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ error: 'Failed to generate PDF: ' + errorMessage });
     }
   });
 
