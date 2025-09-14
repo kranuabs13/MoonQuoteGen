@@ -74,6 +74,9 @@ export default function QuotePreview({
   const lastFlipRef = useRef(0);
 
   const formatCurrency = (amount: number) => {
+    // Ensure proper rounding to 2 decimal places
+    const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
+    
     // Map UI currency codes to valid ISO 4217 codes and locales
     const currencyConfig = {
       USD: { code: 'USD', locale: 'en-US' },
@@ -86,7 +89,9 @@ export default function QuotePreview({
     return new Intl.NumberFormat(config.locale, {
       style: 'currency',
       currency: config.code,
-    }).format(amount);
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(roundedAmount);
   };
 
   const formatDate = (dateStr: string) => {
@@ -94,9 +99,22 @@ export default function QuotePreview({
     return new Date(dateStr).toLocaleDateString('en-GB');
   };
 
-  const grandTotal = costItems.reduce((sum, item) => {
-    return sum + (item.isDiscount ? -item.totalPrice : item.totalPrice);
-  }, 0);
+  // Calculate grand total including both BOM items and cost items
+  const grandTotal = (() => {
+    // Sum all BOM items that have pricing
+    const bomTotal = bomGroups.reduce((bomSum, group) => {
+      return bomSum + group.items.reduce((itemSum, item) => {
+        return itemSum + (item.totalPrice || 0);
+      }, 0);
+    }, 0);
+    
+    // Sum all cost items (with discount handling)
+    const costTotal = costItems.reduce((sum, item) => {
+      return sum + (item.isDiscount ? -item.totalPrice : item.totalPrice);
+    }, 0);
+    
+    return bomTotal + costTotal;
+  })();
 
   // Use contactInfo from props instead of hardcoded contacts
   const contact = contactInfo;
