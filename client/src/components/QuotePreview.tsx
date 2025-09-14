@@ -508,7 +508,7 @@ export default function QuotePreview({
                             onClick={() => onSectionClick?.('bom')}
                             data-testid="preview-bom"
                           >
-                            <h3 className="text-2xl font-bold mb-4 text-white px-3 py-2 rounded" style={{backgroundColor: '#4A90E2'}}>BOM</h3>
+                            <h3 className="text-2xl font-bold mb-4 text-gray-900">BOM</h3>
                             <h4 className="text-xl font-semibold mb-4 text-gray-800">{quoteSubject || 'Catalyst 9300 48-port PoE+'}</h4>
                             
                             {bomGroups.length > 0 ? (
