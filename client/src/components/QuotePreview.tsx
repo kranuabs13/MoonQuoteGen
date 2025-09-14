@@ -110,11 +110,18 @@ export default function QuotePreview({
     }, 0);
     
     // Sum all cost items using the same rounding as display (with discount handling)
+    // Exclude cost items with undefined descriptions to avoid double-counting with BOM items
     const costTotal = costItems.reduce((sum, item) => {
+      // Skip cost items with undefined descriptions (likely duplicates from BOM)
+      if (!item.productDescription || item.productDescription.trim() === '') {
+        return sum;
+      }
+      
       // Use the same rounding logic as formatCurrency for consistency
       const roundedAmount = Math.round(item.totalPrice);
       return sum + (item.isDiscount ? -roundedAmount : roundedAmount);
     }, 0);
+    
     
     return bomTotal + costTotal;
   })();
