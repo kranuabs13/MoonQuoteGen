@@ -74,8 +74,8 @@ export default function QuotePreview({
   const lastFlipRef = useRef(0);
 
   const formatCurrency = (amount: number) => {
-    // Ensure proper rounding to 2 decimal places
-    const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
+    // Round to nearest whole dollar
+    const roundedAmount = Math.round(amount);
     
     // Map UI currency codes to valid ISO 4217 codes and locales
     const currencyConfig = {
@@ -89,8 +89,8 @@ export default function QuotePreview({
     return new Intl.NumberFormat(config.locale, {
       style: 'currency',
       currency: config.code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(roundedAmount);
   };
 
