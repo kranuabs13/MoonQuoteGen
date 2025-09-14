@@ -522,12 +522,12 @@ export default function QuotePreview({
                                       <table className="w-full border-collapse text-xs mb-6 border border-gray-300">
                                         <thead>
                                           <tr className="border-b-2 border-gray-400">
-                                            {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>NO</th>}
-                                            {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>PN</th>}
-                                            {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Product Description</th>}
-                                            {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>QTY</th>}
-                                            {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Unit Price</th>}
-                                            {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: templateSettings?.tableHeaderColor || '#4A90E2'}}>Total Price</th>}
+                                            {columnVisibility.no && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>NO</th>}
+                                            {columnVisibility.partNumber && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>PN</th>}
+                                            {columnVisibility.productDescription && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Product Description</th>}
+                                            {columnVisibility.qty && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>QTY</th>}
+                                            {columnVisibility.unitPrice && <th className="text-left p-2 font-bold text-white border-r border-gray-300" style={{backgroundColor: '#4A90E2'}}>Unit Price</th>}
+                                            {columnVisibility.totalPrice && <th className="text-left p-2 font-bold text-white" style={{backgroundColor: '#4A90E2'}}>Total Price</th>}
                                           </tr>
                                         </thead>
                                         <tbody>
