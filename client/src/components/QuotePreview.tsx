@@ -101,16 +101,19 @@ export default function QuotePreview({
 
   // Calculate grand total including both BOM items and cost items
   const grandTotal = (() => {
-    // Sum all BOM items that have pricing
+    // Sum all BOM items using the same rounding as display (to match what user sees)
     const bomTotal = bomGroups.reduce((bomSum, group) => {
       return bomSum + group.items.reduce((itemSum, item) => {
-        return itemSum + (item.totalPrice || 0);
+        // Use the same rounding logic as formatCurrency for consistency
+        return itemSum + (item.totalPrice ? Math.round(item.totalPrice) : 0);
       }, 0);
     }, 0);
     
-    // Sum all cost items (with discount handling)
+    // Sum all cost items using the same rounding as display (with discount handling)
     const costTotal = costItems.reduce((sum, item) => {
-      return sum + (item.isDiscount ? -item.totalPrice : item.totalPrice);
+      // Use the same rounding logic as formatCurrency for consistency
+      const roundedAmount = Math.round(item.totalPrice);
+      return sum + (item.isDiscount ? -roundedAmount : roundedAmount);
     }, 0);
     
     return bomTotal + costTotal;
